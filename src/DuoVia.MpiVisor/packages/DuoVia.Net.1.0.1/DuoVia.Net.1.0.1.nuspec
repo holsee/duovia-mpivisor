@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>DuoVia.Net</id>
+    <version>1.0.1</version>
+    <title>DuoVia.Net</title>
+    <authors>Duovia</authors>
+    <owners>Duovia</owners>
+    <licenseUrl>http://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
+    <projectUrl>https://github.com/duovia/duovia-net</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A Lightweight Services Library for .NET.</description>
+    <releaseNotes>First release. Enjoy.</releaseNotes>
+    <copyright>Copyright 2013 Duovia Inc.</copyright>
+    <language />
+    <tags>Services NamedPipes TCP Messaging</tags>
+    <references>
+      <reference file="DuoVia.Net.dll" />
+    </references>
+  </metadata>
+</package>
