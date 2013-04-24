@@ -24,7 +24,6 @@ namespace DuoViaTestAgent
             do
             {
                 msg = Agent.Current.ReceiveAnyMessage();
-                if (msg == null) continue; //we timed out
                 switch (msg.MessageType)
                 {
                     //handle content types > -1 which are application specific

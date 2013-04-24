@@ -204,7 +204,8 @@ namespace DuoVia.MpiVisor
         /// <summary>
         /// Returns first message in queue when received. Blocking call with timeout safety valve.
         /// </summary>
-        /// <param name="timeoutSeconds">If no message received in timeoutSeconds, a null be returned.</param>
+        /// <param name="timeoutSeconds">If no message received in timeoutSeconds, a message with
+        /// default values and null content is returned.</param>
         /// <returns></returns>
         public Message ReceiveAnyMessage(int timeoutSeconds = int.MaxValue)
         {
@@ -232,14 +233,16 @@ namespace DuoVia.MpiVisor
                     return message;
                 }
             }
-            return null;
+            return MakeNullMessage();
         }
 
         /// <summary>
         /// Returns first message in queue when received from a specified agent. Blocking call with timeout safety valve.
         /// </summary>
         /// <param name="fromAgentId">The agent id from whom a message is expected.</param>
-        /// <param name="timeoutSeconds">Since this is filtered, the default is on 90 seconds.</param>
+        /// <param name="timeoutSeconds">If no message received in timeoutSeconds, a message with
+        /// default values and null content is returned.
+        /// Since this is filtered, the default is on 90 seconds.</param>
         /// <returns></returns>
         public Message ReceiveFilteredMessage(ushort fromAgentId, int timeoutSeconds = 90)
         {
@@ -268,14 +271,16 @@ namespace DuoVia.MpiVisor
                     return message;
                 }
             }
-            return null;
+            return MakeNullMessage();
         }
 
         /// <summary>
         /// Returns first message in queue when received from for a specified content type. Blocking call with timeout safety valve.
         /// </summary>
         /// <param name="contentType">The content type of the message expected.</param>
-        /// <param name="timeoutSeconds">Since this is filtered, the default is on 90 seconds.</param>
+        /// <param name="timeoutSeconds">If no message received in timeoutSeconds, a message with
+        /// default values and null content is returned.
+        /// Since this is filtered, the default is on 90 seconds.</param>
         /// <returns></returns>
         public Message ReceiveFilteredMessage(int contentType, int timeoutSeconds = 90)
         {
@@ -304,13 +309,15 @@ namespace DuoVia.MpiVisor
                     return message;
                 }
             }
-            return null;
+            return MakeNullMessage();
         }
 
         /// <summary>
         /// Returns first message in queue when received from for an application level content type. Blocking call with timeout safety valve.
         /// </summary>
-        /// <param name="timeoutSeconds">If no message received in timeoutSeconds, a null be returned.</param>
+        /// <param name="timeoutSeconds">If no message received in timeoutSeconds, a message with
+        /// default values and null content is returned.
+        /// If no message received in timeoutSeconds, a null be returned.</param>
         /// <returns></returns>
         public Message ReceiveApplicationMessage(int timeoutSeconds = int.MaxValue)
         {
@@ -339,7 +346,18 @@ namespace DuoVia.MpiVisor
                     return message;
                 }
             }
-            return null;
+            return MakeNullMessage();
+        }
+
+        /// <summary>
+        /// Create the message that is returned when Receive methods timeout.
+        /// </summary>
+        /// <returns></returns>
+        private Message MakeNullMessage()
+        {
+            //make a message that is from and to this agent with unused message type value
+            var msg = new Message(SessionId, AgentId, AgentId, -987654, null);
+            return msg;
         }
 
         /// <summary>

@@ -15,5 +15,6 @@ namespace DuoVia.MpiVisor
         public const int LogShuttle = -6;
 
         //note -999999 is reserved for log messag shuttling
+        //     -987654 is reserved as the NULL message type
     }
 }
