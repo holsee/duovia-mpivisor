@@ -151,8 +151,9 @@ namespace DuoVia.MpiVisor
                 _writer.WriteLine(message);
                 _writer.Flush();
             }
-            catch
+            catch (Exception e)
             {
+                e.ProcessUnhandledException("MpiVisor");
             }
         }
 

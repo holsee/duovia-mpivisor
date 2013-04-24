@@ -8,7 +8,7 @@ namespace DuoViaTestAgent
 {
     internal static class MasterRunner
     {
-        private static ushort numberOfAgentsToSpawn = 2;
+        private static ushort numberOfAgentsToSpawn = 1;
 
         //use to stop message processing loop
         private static bool continueProcessing = true;

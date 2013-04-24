@@ -57,6 +57,7 @@
   <ItemGroup>
     <Compile Include="AgentEndPoint.cs" />
     <Compile Include="AgentPortfolio.cs" />
+    <Compile Include="ClusterServerInfo.cs" />
     <Compile Include="ClusterServiceProxy.cs" />
     <Compile Include="IClusterService.cs" />
     <Compile Include="MpiVisorService.cs">

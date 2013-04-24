@@ -93,8 +93,21 @@ namespace DuoVia.MpiVisor.Services
 
         public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy)
         {
-            //TODO implement spawn strategy such as one agent per cluster node and one agent per processor/core
-            throw new NotImplementedException();
+            switch(strategy)
+            {
+                case 1:
+                    //spawn one agent per cluster visor node - force count to 1
+                    Spawn(sessionId, 1, agentExecutableName, package, args); 
+                    break;
+                case 2:
+                    //spawn one agent per cluster visor node cpu/core (logical processors)
+                    Spawn(sessionId, (ushort)Environment.ProcessorCount, agentExecutableName, package, args);
+                    break;
+                default:
+                    //default standard behavior
+                    Spawn(sessionId, count, agentExecutableName, package, args); 
+                    break;
+            }
         }
 
         public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args)

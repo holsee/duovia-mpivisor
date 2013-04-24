@@ -18,9 +18,7 @@ namespace DuoVia.MpiVisor
         public static byte[] PackageAgent()
         {
             var rootDir = AppDomain.CurrentDomain.BaseDirectory;
-            var packageDir = Path.Combine(rootDir, "_temp");
-            Directory.CreateDirectory(packageDir);
-
+            
             //TODO - add manifest or other mechanism to allow more than assemblies and config files to be deployed
             var exeFiles = Directory.GetFiles(rootDir, "*.exe", SearchOption.AllDirectories);
             var dllFiles = Directory.GetFiles(rootDir, "*.dll", SearchOption.AllDirectories);

@@ -29,17 +29,17 @@ namespace DuoVia.MpiVisor.Server
             Proxy.UnRegisterAgent(sessionId, agentId);
         }
 
-        public void RegisterClusterNode(string ipAddress, int port)
+        public void RegisterClusterNode(ClusterServerInfo info)
         {
-            Proxy.RegisterClusterNode(ipAddress, port);
+            Proxy.RegisterClusterNode(info);
         }
 
-        public void UnRegisterClusterNode(string ipAddress, int port)
+        public void UnRegisterClusterNode(ClusterServerInfo info)
         {
-            Proxy.UnRegisterClusterNode(ipAddress, port);
+            Proxy.UnRegisterClusterNode(info);
         }
 
-        public string[] GetRegisteredNodes()
+        public ClusterServerInfo[] GetRegisteredNodes()
         {
             return Proxy.GetRegisteredNodes();
         }
@@ -48,11 +48,6 @@ namespace DuoVia.MpiVisor.Server
         {
             Proxy.RelayMessage(message);
         }
-
-        //public byte[] GetLogs(Guid sessionId)
-        //{
-        //    return Proxy.GetLogs(sessionId);
-        //}
 
         public void KillSession(Guid sessionId)
         {

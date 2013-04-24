@@ -29,36 +29,25 @@ namespace DuoVia.MpiVisor.Server
             Visor.Current.UnRegisterAgent(sessionId, agentId);            
         }
 
-        public void RegisterClusterNode(string ipAddress, int port)
+        public void RegisterClusterNode(ClusterServerInfo info)
         {
-            Visor.Current.RegisterClusterNode(new IPEndPoint(IPAddress.Parse(ipAddress), port));
+            Visor.Current.RegisterClusterNode(info);
         }
 
-        public void UnRegisterClusterNode(string ipAddress, int port)
+        public void UnRegisterClusterNode(ClusterServerInfo info)
         {
-            Visor.Current.UnRegisterClusterNode(new IPEndPoint(IPAddress.Parse(ipAddress), port));
+            Visor.Current.UnRegisterClusterNode(info);
         }
 
-        public string[] GetRegisteredNodes()
+        public ClusterServerInfo[] GetRegisteredNodes()
         {
-            var nodes = Visor.Current.GetRegisteredClusterNodes();
-            List<string> list = new List<string>();
-            foreach (var node in nodes)
-            {
-                list.Add(node.Address.ToString() + "," + node.Port.ToString());
-            }
-            return list.ToArray();
+            return Visor.Current.GetRegisteredClusterNodes();
         }
 
         public void RelayMessage(Message message)
         {
             Visor.Current.EnqueueMessage(message);
         }
-
-        //public byte[] GetLogs(Guid sessionId)
-        //{
-        //    return Visor.Current.PackageLogs(sessionId);
-        //}
 
         public void KillSession(Guid sessionId)
         {

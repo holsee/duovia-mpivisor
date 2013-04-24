@@ -144,6 +144,29 @@ namespace DuoVia.MpiVisor
         /// <param name="args"></param>
         public void SpawnAgents(ushort count, string[] args)
         {
+            SpawnInternal(count, args, 0);
+        }
+
+        /// <summary>
+        /// Spawn one worker agent per cluster node including node executing master agent.
+        /// </summary>
+        /// <param name="args"></param>
+        public void SpawnOneAgentPerNode(string[] args)
+        {
+            SpawnInternal(1, args, 1);
+        }
+
+        /// <summary>
+        /// Spawn one worker agent per logical processor on each cluster node including node executing master agent.
+        /// </summary>
+        /// <param name="args"></param>
+        public void SpawnOneAgentPerLogicalProcessor(string[] args)
+        {
+            SpawnInternal(2, args, 2);
+        }
+
+        private void SpawnInternal(ushort count, string[] args, int strategy)
+        {
             if (!IsMaster) throw new Exception("Only master agent can spawn new agents");
             if (count == MpiConsts.MasterAgentId || count == MpiConsts.BroadcastAgentId)
             {
@@ -152,7 +175,10 @@ namespace DuoVia.MpiVisor
             var package = _nodeServiceFactory.IsInternalServer ? new byte[0] : ZipUtils.PackageAgent();
             var entryAssembly = Assembly.GetEntryAssembly();
             var agentExecutableName = Path.GetFileName(entryAssembly.Location);
-            _nodeServiceProxy.Spawn(this.SessionId, count, agentExecutableName, package, args);
+            if (strategy > 0)
+                _nodeServiceProxy.SpawnStrategic(this.SessionId, count, agentExecutableName, package, args, strategy);
+            else
+                _nodeServiceProxy.Spawn(this.SessionId, count, agentExecutableName, package, args);
         }
 
         /// <summary>
