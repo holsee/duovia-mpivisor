@@ -23,5 +23,10 @@ namespace DuoVia.MpiVisor.Server
         /// Default is 0. Is used to allow Visor to respond to a subsequent request to add even more agents in a running session.
         /// </summary>
         public ushort Offset { get; set; }
+
+        /// <summary>
+        /// Used to specify spawn strategy. Default of 0 means no specified strategy.
+        /// </summary>
+        public int Strategy { get; set; }
     }
 }

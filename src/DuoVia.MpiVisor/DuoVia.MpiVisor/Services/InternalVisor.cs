@@ -91,6 +91,12 @@ namespace DuoVia.MpiVisor.Services
             }
         }
 
+        public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy)
+        {
+            //TODO implement spawn strategy such as one agent per cluster node and one agent per processor/core
+            throw new NotImplementedException();
+        }
+
         public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args)
         {
             Task.Factory.StartNew(() =>

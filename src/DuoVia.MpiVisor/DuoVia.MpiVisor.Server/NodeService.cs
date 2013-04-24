@@ -14,6 +14,20 @@ namespace DuoVia.MpiVisor.Server
             return echo;
         }
 
+        public void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy)
+        {
+            var request = new SpawnRequest
+            {
+                SessionId = sessionId,
+                Count = count,
+                AgentExecutableName = agentExecutableName,
+                Package = package,
+                Args = args,
+                Strategy = strategy
+            };
+            Visor.Current.EnqueueSpawnRequest(request);
+        }
+
         public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args)
         {
             var request = new SpawnRequest 

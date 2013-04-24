@@ -339,6 +339,7 @@ namespace DuoVia.MpiVisor.Server
 
         private void SpawnAgent(SpawnRequest request, ushort agentId, Guid sessionId)
         {
+            //TODO implement spawn strategy such as one agent per cluster node and one agent per processor/core
             lock (_agentPortfolios)
             {
                 if (!_agentPortfolios.ContainsKey(sessionId))
@@ -474,6 +475,7 @@ namespace DuoVia.MpiVisor.Server
                         Package = hasSentToClusterOnce.Contains(clusterIndex)
                                     ? null
                                     : request.Package,
+                        Strategy = request.Strategy,
                         IsVisorDirective = true
                     };
                     //send this to clusterIndex

@@ -17,6 +17,7 @@ namespace DuoVia.MpiVisor.Services
     {
         int Ping(int echo);
         void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args);
+        void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy);
         void Send(Message message);
         void Broadcast(Message message);
         void RegisterMasterAgent(Guid sessionId);

@@ -25,6 +25,11 @@ namespace DuoVia.MpiVisor.Services
             InternalVisor.Current.Spawn(sessionId, count, agentExecutableName, package, args);
         }
 
+        public void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy)
+        {
+            InternalVisor.Current.Spawn(sessionId, count, agentExecutableName, package, args, strategy);
+        }
+
         public void Send(Message message)
         {
             InternalVisor.Current.Send(message);
