@@ -38,8 +38,10 @@ namespace DuoViaTestAgent
                     catch (Exception e)
                     {
                         Log.Error("spawn agent exception: {0}", e);
-                        Agent.Current.Send(new Message(Agent.Current.SessionId, Agent.Current.AgentId,
-                            MpiConsts.MasterAgentId, SystemMessageTypes.Aborted, e.ToString()));
+                        Agent.Current.Send(
+                            toAgentId: MpiConsts.MasterAgentId,
+                            messageType: SystemMessageTypes.Aborted,
+                            content: e);
                     }
                 }
             }

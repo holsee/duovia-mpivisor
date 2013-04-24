@@ -1,5 +1,4 @@
-﻿/* Singleton pattern: 4th version from http://csharpindepth.com/Articles/General/Singleton.aspx */
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -157,12 +156,49 @@ namespace DuoVia.MpiVisor
         }
 
         /// <summary>
+        /// Broadcast message to all other running agents.
+        /// </summary>
+        /// <param name="messageType"></param>
+        /// <param name="content"></param>
+        public void Broadcast(int messageType, object content)
+        {
+            var msg = new Message
+            {
+                FromId = AgentId,
+                SessionId = SessionId,
+                ToId = MpiConsts.BroadcastAgentId,
+                MessageType = messageType,
+                Content = content
+            };
+            _nodeServiceProxy.Broadcast(msg);
+        }
+
+        /// <summary>
         /// Send message to another worker agent in this execution context session.
         /// </summary>
         /// <param name="message"></param>
         public void Send(Message message)
         {
             _nodeServiceProxy.Send(message);
+        }
+
+        /// <summary>
+        /// Send message to another agent from this agent.
+        /// </summary>
+        /// <param name="toAgentId"></param>
+        /// <param name="messageType"></param>
+        /// <param name="content"></param>
+        public void Send(ushort toAgentId, int messageType, object content)
+        {
+            var msg = new Message
+            {
+                FromId = AgentId,
+                SessionId = SessionId,
+                ToId = toAgentId,
+                MessageType = messageType,
+                Content = content
+            };
+            Send(msg);
         }
 
         /// <summary>

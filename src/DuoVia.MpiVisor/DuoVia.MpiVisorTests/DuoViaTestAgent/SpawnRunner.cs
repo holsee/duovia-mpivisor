@@ -25,14 +25,10 @@ namespace DuoViaTestAgent
                         Log.Info("AgentId {0} sent message type 1 with {1}", msg.FromId, msg.Content);
 
                         //this test/demo just sends the message back to the sender
-                        Agent.Current.Send(new Message
-                            {
-                                FromId = Agent.Current.AgentId,
-                                SessionId = Agent.Current.SessionId,
-                                ToId = msg.FromId,
-                                MessageType = 2,
-                                Content = msg.Content.ToString() + " received"
-                            });
+                        Agent.Current.Send(
+                            toAgentId: msg.FromId, 
+                            messageType: 2, 
+                            content: msg.Content.ToString() + " received");
                         break;
 
                     //handle internal messages and unknown

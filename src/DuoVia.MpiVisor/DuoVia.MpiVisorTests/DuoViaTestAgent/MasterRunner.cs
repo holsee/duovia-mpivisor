@@ -36,28 +36,20 @@ namespace DuoViaTestAgent
                         Log.Info("AgentId {0} sent message type 2 with {1}", msg.FromId, msg.Content);
 
                         //this test/demo just sends the message back to the sender
-                        Agent.Current.Send(new Message
-                            {
-                                FromId = Agent.Current.AgentId,
-                                SessionId = Agent.Current.SessionId,
-                                ToId = msg.FromId,
-                                MessageType = SystemMessageTypes.Shutdown,
-                                Content = null
-                            });
+                        Agent.Current.Send(
+                            toAgentId: msg.FromId,
+                            messageType: SystemMessageTypes.Shutdown,
+                            content: null);
                         break;
 
                     //handle internal messages and unknown
                     case SystemMessageTypes.Started:
                         Log.Info("AgentId {0} reports being started.", msg.FromId);
                         //send demo/test content message
-                        Agent.Current.Send(new Message
-                        {
-                            FromId = Agent.Current.AgentId,
-                            SessionId = Agent.Current.SessionId,
-                            ToId = msg.FromId,
-                            MessageType = 1,  //custom app type
-                            Content = "hello from 1"
-                        });
+                        Agent.Current.Send(
+                            toAgentId: msg.FromId,
+                            messageType: 1,
+                            content: "hello from 1");
                         break;
                     case SystemMessageTypes.Stopped:
                         Log.Info("AgentId {0} reports being stopped.", msg.FromId);

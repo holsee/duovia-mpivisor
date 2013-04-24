@@ -19,7 +19,6 @@ namespace DuoVia.MpiVisor.Services
         void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args);
         void Send(Message message);
         void Broadcast(Message message);
-        //void BeginLogFileConsolidation(Guid sessionId, string destinationFileName);
         void RegisterMasterAgent(Guid sessionId);
         void UnRegisterAgent(Guid sessionId, ushort agentId);
         ushort[] GetRunningAgents(Guid sessionId);
