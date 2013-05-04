@@ -23,7 +23,6 @@ namespace DuoVia.MpiVisor
         private readonly AgentService _agentService = null;
         private readonly NpHost _agentServiceHost = null;
         private readonly DateTime _startedAt = DateTime.Now;
-        private readonly string _startDebugMsg = string.Empty;
 
         private ManualResetEvent _incomingMessageWaitHandle = new ManualResetEvent(false);
         private LinkedList<Message> _incomingMessageBuffer = new LinkedList<Message>();
@@ -40,7 +39,6 @@ namespace DuoVia.MpiVisor
             {
                 SessionId = (Guid)sessionIdData;
                 AgentId = (ushort)agentIdData;
-                _startDebugMsg = string.Format("appdomain agent start {0} {1}", agentIdData, sessionIdData);
             }
             else
             {
@@ -54,14 +52,12 @@ namespace DuoVia.MpiVisor
                     var agentIdVar = p.StartInfo.EnvironmentVariables["AgentId"];
                     SessionId = Guid.Parse(sessionIdVar);
                     AgentId = ushort.Parse(agentIdVar);
-                    _startDebugMsg = string.Format("envvar agent start {0} {1}", agentIdVar, sessionIdVar);
                 }
                 else
                 {
                     //no domain or environment variables
                     SessionId = Guid.NewGuid();
                     AgentId = 0;
-                    _startDebugMsg = string.Format("master agent start");
                 }
             }
 
@@ -107,7 +103,6 @@ namespace DuoVia.MpiVisor
                     _current.Send(new Message(_current.SessionId,
                         _current.AgentId, MpiConsts.MasterAgentId, SystemMessageTypes.Started, null));
                 }
-                Log.Debug(_current._startDebugMsg);
             }
             return _current;
         }

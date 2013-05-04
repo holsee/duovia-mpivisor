@@ -77,7 +77,7 @@ namespace DuoVia.MpiVisor.Services
                         try
                         {
                             var agentName = GetAgentName(agentId, message.SessionId);
-                            using (var proxy = new AgentServiceProxy(new NpEndPoint(agentName)))
+                            using (var proxy = new AgentServiceProxy(new NpEndPoint(agentName, 500)))
                             {
                                 proxy.Send(message);
                             }
