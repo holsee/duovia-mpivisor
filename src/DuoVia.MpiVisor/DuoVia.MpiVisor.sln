@@ -18,6 +18,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{F31B5C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FindMyPrimes", "DuoVia.MpiVisorTests\FindMyPrimes\FindMyPrimes.csproj", "{E7023542-2127-42A3-BE6F-3A56DFBAAC8C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuoVia.MpiVisor.Tests", "DuoVia.MpiVisor.Tests\DuoVia.MpiVisor.Tests.csproj", "{4D97183D-9563-4A39-B544-A7EE4F5C32B6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,6 +42,10 @@ Global
 		{E7023542-2127-42A3-BE6F-3A56DFBAAC8C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E7023542-2127-42A3-BE6F-3A56DFBAAC8C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E7023542-2127-42A3-BE6F-3A56DFBAAC8C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D97183D-9563-4A39-B544-A7EE4F5C32B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D97183D-9563-4A39-B544-A7EE4F5C32B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D97183D-9563-4A39-B544-A7EE4F5C32B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D97183D-9563-4A39-B544-A7EE4F5C32B6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -47,5 +53,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{8C077962-4E7B-4DC2-8447-C76CC350F9AD} = {8A1DE554-FE10-48E3-93B5-5F1BEDB174B2}
 		{E7023542-2127-42A3-BE6F-3A56DFBAAC8C} = {8A1DE554-FE10-48E3-93B5-5F1BEDB174B2}
+		{4D97183D-9563-4A39-B544-A7EE4F5C32B6} = {8A1DE554-FE10-48E3-93B5-5F1BEDB174B2}
 	EndGlobalSection
 EndGlobal
