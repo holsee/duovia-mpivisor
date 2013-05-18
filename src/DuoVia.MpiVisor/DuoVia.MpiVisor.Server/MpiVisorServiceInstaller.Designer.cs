@@ -55,8 +55,8 @@
         }
 
         private string serviceName = "MpiVisorService";
-        private string serviceDescription = "DuoVia MpiVisor Server Service";
-        private string serviceDisplayName = "Service used to host DuoVia MpiVisor Server instances";
+        private string serviceDescription = "Service used to host DuoVia MpiVisor Server instances";
+        private string serviceDisplayName = "DuoVia MpiVisor Server Service";
 
         private System.ServiceProcess.ServiceInstaller serviceInstaller1;
         private System.ServiceProcess.ServiceProcessInstaller serviceProcessInstaller1;
