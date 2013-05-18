@@ -17,8 +17,9 @@ DuoVia.MpiVisor
 >
 > More to come... 
 > 
-> The author hopes you will use and help improve this library.
+> The author hopes you will use and help improve this library. Join the conversation on [Hip Chat][4].
 
 [1]: http://nuget.org/packages/DuoVia.MpiVisor/    "NuGet"
 [2]: http://mpapi.codeplex.com/          "MPAPI"
 [3]: http://osl.iu.edu/research/mpi.net/   "MPI.NET"
+[4]: https://www.hipchat.com/gHWO84CXp     "Hip Chat"
