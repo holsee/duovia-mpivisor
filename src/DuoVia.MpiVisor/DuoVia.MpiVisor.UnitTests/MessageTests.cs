@@ -1,10 +1,9 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using FluentAssertions;
+using System;
 
 namespace DuoVia.MpiVisor.UnitTests
 {
-    using System;
-
     [TestClass]
     public class MessageTests
     {
