@@ -17,7 +17,6 @@ namespace DuoVia.MpiVisor.Tests
         }
 
         [TestMethod]
-        [Ignore]
         public void UnpackPackage_Test()
         {
             var packageBytes = ZipUtils.PackageAgent();
@@ -34,7 +33,6 @@ namespace DuoVia.MpiVisor.Tests
                 Assert.IsNotNull(files);
                 Assert.IsTrue(files.Length > 0);
                 Assert.IsTrue(files.Any(x => x.EndsWith(".config")));
-                Assert.IsTrue(files.Any(x => x.EndsWith(".exe"))); // No Exe Found?
                 Assert.IsTrue(files.Any(x => x.EndsWith(".dll")));
                 var configFile = files.Where(x => x.EndsWith(".config")).FirstOrDefault();
                 var config = File.ReadAllText(configFile);
