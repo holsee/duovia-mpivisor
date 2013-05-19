@@ -33,7 +33,6 @@ namespace DuoVia.MpiVisor.Tests
                 Assert.IsNotNull(files);
                 Assert.IsTrue(files.Length > 0);
                 Assert.IsTrue(files.Any(x => x.EndsWith(".config")));
-                Assert.IsTrue(files.Any(x => x.EndsWith(".exe")));
                 Assert.IsTrue(files.Any(x => x.EndsWith(".dll")));
                 var configFile = files.Where(x => x.EndsWith(".config")).FirstOrDefault();
                 var config = File.ReadAllText(configFile);

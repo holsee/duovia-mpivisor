@@ -12,7 +12,7 @@ namespace DuoViaTestAgent
         {
             //connect agent and dispose at end of execution
             //use forceLocal to run in a single process with internal visor
-            using (Agent.Connect(forceLocal: false)) 
+            using (Agent.Connect(forceLocal: true)) 
             {
                 //default is File only - spawned agents shuttle logs back to master
                 Log.LogType = LogType.Both; 

@@ -3,11 +3,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{4D97183D-9563-4A39-B544-A7EE4F5C32B6}</ProjectGuid>
+    <ProjectGuid>{D91B6A90-C762-4EEE-8484-F0A17E772E1F}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DuoVia.MpiVisor.Tests</RootNamespace>
-    <AssemblyName>DuoVia.MpiVisor.Tests</AssemblyName>
+    <RootNamespace>DuoVia.MpiVisor.Server.Tests</RootNamespace>
+    <AssemblyName>DuoVia.MpiVisor.Server.Tests</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{3AC096D0-A1C2-E12C-1390-A8335801FDAB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -36,7 +36,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="System.configuration" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
@@ -54,18 +53,18 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="ZipUtilsTests.cs" />
+    <Compile Include="VisorTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
+    <ProjectReference Include="..\DuoVia.MpiVisor.Server\DuoVia.MpiVisor.Server.csproj">
+      <Project>{6a9a6b50-f49e-4b72-a585-5c3a738aac39}</Project>
+      <Name>DuoVia.MpiVisor.Server</Name>
+    </ProjectReference>
     <ProjectReference Include="..\DuoVia.MpiVisor\DuoVia.MpiVisor.csproj">
       <Project>{3aef1f93-3cbc-42c8-bcc5-6d9a56fcaf5d}</Project>
       <Name>DuoVia.MpiVisor</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
