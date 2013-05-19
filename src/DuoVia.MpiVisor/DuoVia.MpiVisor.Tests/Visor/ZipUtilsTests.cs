@@ -17,6 +17,7 @@ namespace DuoVia.MpiVisor.Tests
         }
 
         [TestMethod]
+        [Ignore]
         public void UnpackPackage_Test()
         {
             var packageBytes = ZipUtils.PackageAgent();
