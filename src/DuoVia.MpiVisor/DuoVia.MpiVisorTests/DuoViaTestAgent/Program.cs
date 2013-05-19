@@ -45,6 +45,8 @@ namespace DuoViaTestAgent
                     }
                 }
             }
+
+            Console.ReadLine();
         } //standard ending - will force service to kill spawned agents  
     }
 }
