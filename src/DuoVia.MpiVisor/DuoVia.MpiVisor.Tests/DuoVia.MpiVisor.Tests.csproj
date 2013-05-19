@@ -54,17 +54,11 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="Visor\ZipUtilsTests.cs" />
+    <Compile Include="ZipUtilsTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
-    <Folder Include="VisorServer\" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\DuoVia.MpiVisor.Server\DuoVia.MpiVisor.Server.csproj">
-      <Project>{6a9a6b50-f49e-4b72-a585-5c3a738aac39}</Project>
-      <Name>DuoVia.MpiVisor.Server</Name>
-    </ProjectReference>
     <ProjectReference Include="..\DuoVia.MpiVisor\DuoVia.MpiVisor.csproj">
       <Project>{3aef1f93-3cbc-42c8-bcc5-6d9a56fcaf5d}</Project>
       <Name>DuoVia.MpiVisor</Name>
