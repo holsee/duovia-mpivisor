@@ -28,5 +28,10 @@ namespace DuoVia.MpiVisor.Server
         /// Used to specify spawn strategy. Default of 0 means no specified strategy.
         /// </summary>
         public int Strategy { get; set; }
+
+        /// <summary>
+        /// Used as an argument to modify strategy behavior
+        /// </summary>
+        public double Factor { get; set; }
     }
 }

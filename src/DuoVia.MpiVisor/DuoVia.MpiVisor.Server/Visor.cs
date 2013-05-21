@@ -460,6 +460,34 @@ namespace DuoVia.MpiVisor.Server
                             agentsPerNode = 1;
                             break;
                         case 2:
+                            agentsPerNode = node.ProcessorCount; 
+                            break;
+                        case 3:
+                            //spawn one agent per cluster visor node cpu/core (logical processors) - 1
+                            agentsPerNode = node.ProcessorCount - 1;
+                            if (agentsPerNode < 1) agentsPerNode = 1;
+                            break;
+                        case 4:
+                            //spawn one agent per cluster visor node cpu/core (logical processors) - (int)factor
+                            if (request.Factor < 0.0) request.Factor = 0.0;
+                            if (request.Factor > node.ProcessorCount) request.Factor = node.ProcessorCount - 1.0;
+                            agentsPerNode = (ushort)(node.ProcessorCount - (int)request.Factor); 
+                            if (agentsPerNode < 1) agentsPerNode = 1;
+                            break;
+                        case 5:
+                            //spawn one agent per cluster visor node cpu/core (logical processors) * factor (percentage)
+                            if (request.Factor < 0.1) request.Factor = 0.1;
+                            if (request.Factor > node.ProcessorCount * 10.0) request.Factor = node.ProcessorCount * 10.0;
+                            agentsPerNode = (ushort)(node.ProcessorCount * request.Factor);
+                            if (agentsPerNode < 1) agentsPerNode = 1;
+                            break;
+                        case 6:
+                            //spawn (int)factor agents per cluster visor node cpu/core 
+                            if (request.Factor < 0.0) request.Factor = 1.0;
+                            if (request.Factor > node.ProcessorCount * 10.0) request.Factor = node.ProcessorCount * 10.0;
+                            agentsPerNode = (ushort)((int)request.Factor);
+                            if (agentsPerNode < 1) agentsPerNode = 1;
+                            break;
                         default:
                             agentsPerNode = node.ProcessorCount; 
                             break;
