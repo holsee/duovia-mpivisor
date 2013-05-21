@@ -59,8 +59,6 @@ namespace DuoVia.Net
 
         internal void SendParameters(BinaryWriter writer, params object[] parameters)
         {
-            MemoryStream ms;
-            BinaryFormatter formatter = new BinaryFormatter();
             //write how many parameters are coming
             writer.Write(parameters.Length);
             //write data for each parameter
@@ -134,13 +132,11 @@ namespace DuoVia.Net
                             writer.Write(((Guid)parameter).ToByteArray());
                             break;
                         case ParameterTypes.Unknown:
-                            ms = new MemoryStream();
-                            formatter.Serialize(ms, parameter);
-                            ms.Seek(0, SeekOrigin.Begin);
+                            var bytes = parameter.ToSerializedBytes();;
                             //write length of data
-                            writer.Write((int)ms.Length);
+                            writer.Write(bytes.Length);
                             //write data
-                            writer.Write(ms.ToArray());
+                            writer.Write(bytes);
                             break;
                         default:
                             throw new Exception(string.Format("Unknown type byte '0x{0:X}'", typeByte));
@@ -155,8 +151,6 @@ namespace DuoVia.Net
         {
             int parameterCount = reader.ReadInt32();
             object[] parameters = new object[parameterCount];
-            MemoryStream ms;
-            BinaryFormatter formatter = new BinaryFormatter();
             for (int i = 0; i < parameterCount; i++)
             {
                 //read type byte
@@ -226,9 +220,8 @@ namespace DuoVia.Net
                             parameters[i] = new Guid(reader.ReadBytes(16));
                             break;
                         case ParameterTypes.Unknown:
-                            ms = new MemoryStream(reader.ReadBytes(reader.ReadInt32()));
-                            //deserialize the parameter array
-                            parameters[i] = formatter.Deserialize(ms);
+                            var bytes = reader.ReadBytes(reader.ReadInt32());
+                            parameters[i] = bytes.ToDeserializedObject();
                             break;
                         default:
                             throw new Exception(string.Format("Unknown type byte '0x{0:X}'", typeByte));
