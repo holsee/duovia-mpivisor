@@ -68,8 +68,8 @@ namespace DuoVia.Net.NamedPipes
         /// </summary>
         /// <param name="remotedType">The remoted type. This must have a default constructor</param>
         /// <param name="pipeName">The pipe name for incoming requests</param>
-        public NpHost(Type remotedType, string pipeName, string[] allowedUsers = null)
-            : this(Activator.CreateInstance(remotedType), pipeName, allowedUsers)
+        public NpHost(Type remotedType, string pipeName)
+            : this(Activator.CreateInstance(remotedType), pipeName)
         {
         }
 
@@ -81,10 +81,10 @@ namespace DuoVia.Net.NamedPipes
         /// </summary>
         /// <param name="singletonInstance">The singleton instance of the service</param>
         /// <param name="pipeName">The pipe name for incoming requests</param>
-        public NpHost(object singletonInstance, string pipeName, string[] allowedUsers = null)
+        public NpHost(object singletonInstance, string pipeName)
         {
             _pipeName = pipeName;
-            _listener = new NpListener(_pipeName, allowedUsers: allowedUsers);
+            _listener = new NpListener(_pipeName); //new TcpListener(_endPoint);
             _listener.RequestReieved += ClientConnectionMade;
             _continueListening = true;
             _singletonInstance = singletonInstance;

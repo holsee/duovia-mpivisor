@@ -15,7 +15,7 @@ namespace DuoVia.NetTestHost
 		{
 			var tester = new NetTester();
 			var pipeName = "DuoViaTestHost";
-			var nphost = new NpHost(tester, pipeName, new string[] { "Users" }); //used when service is hosted by a different user
+			var nphost = new NpHost(tester, pipeName);
 			nphost.Open();
 
 			var ipEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 8098);

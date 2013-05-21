@@ -48,6 +48,7 @@
     <Compile Include="NamedPipes\NpHost.cs" />
     <Compile Include="NamedPipes\NpListener.cs" />
     <Compile Include="NamedPipes\NpProxy.cs" />
+    <Compile Include="NetExtensions.cs" />
     <Compile Include="ParameterTransferHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ProxyFactory.cs" />
