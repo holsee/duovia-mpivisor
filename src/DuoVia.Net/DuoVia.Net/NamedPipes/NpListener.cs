@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipes;
 using System.Linq;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,14 +26,20 @@ namespace DuoVia.Net.NamedPipes
         private Thread runningThread;
         private EventWaitHandle terminateHandle = new EventWaitHandle(false, EventResetMode.AutoReset);
         private int _maxConnections = 254;
+        private PipeSecurity _pipeSecurity = null;
+
         public string PipeName { get; set; }
         public event EventHandler<PipeClientConnectionEventArgs> RequestReieved;
-
+        
         public NpListener(string pipeName, int maxConnections = 254)
         {
             if (maxConnections > 254) maxConnections = 254;
             _maxConnections = maxConnections;
             this.PipeName = pipeName;
+            _pipeSecurity = new PipeSecurity();
+            _pipeSecurity.AddAccessRule(new PipeAccessRule(@"Everyone", PipeAccessRights.ReadWrite, AccessControlType.Allow));
+            _pipeSecurity.AddAccessRule(new PipeAccessRule(WindowsIdentity.GetCurrent().User, PipeAccessRights.FullControl, AccessControlType.Allow));
+            _pipeSecurity.AddAccessRule(new PipeAccessRule(@"SYSTEM", PipeAccessRights.FullControl, AccessControlType.Allow));
         }
 
         public void Start()
@@ -96,7 +104,10 @@ namespace DuoVia.Net.NamedPipes
         {
             try
             {
-                var pipeStream = new NamedPipeServerStream(PipeName, PipeDirection.InOut, _maxConnections);
+                //var pipeStream = new NamedPipeServerStream(PipeName, PipeDirection.InOut, _maxConnections);
+
+                var pipeStream = new NamedPipeServerStream(PipeName, PipeDirection.InOut, _maxConnections, 
+                    PipeTransmissionMode.Byte, PipeOptions.None, 512, 512, _pipeSecurity);
                 pipeStream.WaitForConnection();
 
                 //spawn a new thread for each request and continue waiting
