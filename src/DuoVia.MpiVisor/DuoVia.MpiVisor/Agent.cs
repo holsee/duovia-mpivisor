@@ -139,7 +139,7 @@ namespace DuoVia.MpiVisor
         /// <param name="args"></param>
         public void SpawnAgents(ushort count, string[] args)
         {
-            SpawnInternal(count, args, 0);
+            SpawnInternal(count, args, 0, 0.0);
         }
 
         /// <summary>
@@ -148,7 +148,7 @@ namespace DuoVia.MpiVisor
         /// <param name="args"></param>
         public void SpawnOneAgentPerNode(string[] args)
         {
-            SpawnInternal(1, args, 1);
+            SpawnInternal(1, args, 1, 0.0);
         }
 
         /// <summary>
@@ -157,10 +157,47 @@ namespace DuoVia.MpiVisor
         /// <param name="args"></param>
         public void SpawnOneAgentPerLogicalProcessor(string[] args)
         {
-            SpawnInternal(2, args, 2);
+            SpawnInternal(1, args, 2, 0.0);
         }
 
-        private void SpawnInternal(ushort count, string[] args, int strategy)
+        /// <summary>
+        /// Spawn one worker agent per logical processor, less one, on each cluster node including node executing master agent.
+        /// </summary>
+        /// <param name="args"></param>
+        public void SpawnOneAgentPerLogicalProcessorLessOne(string[] args)
+        {
+            SpawnInternal(1, args, 3, 0.0);
+        }
+        /// <summary>
+        /// Spawn one worker agent per logical processor, less one, on each cluster node including node executing master agent.
+        /// </summary>
+        /// <param name="args"></param>
+        /// <param name="count">agents = LogicalProcessCount - count</param>
+        public void SpawnOneAgentPerLogicalProcessorLessCount(string[] args, int count)
+        {
+            SpawnInternal(1, args, 4, Convert.ToDouble(count));
+        }
+        /// <summary>
+        /// Spawn worker agents by factor multiplied by number of logical processors on each cluster node including node executing master agent.
+        /// </summary>
+        /// <param name="args"></param>
+        /// <param name="factor">agents = LogicalProcessCount * factor</param>
+        public void SpawnOneAgentAsFactorOfLogicalProcessorCount(string[] args, double factor)
+        {
+            SpawnInternal(1, args, 5, factor);
+        }
+        /// <summary>
+        /// Spawn count of worker agents on each cluster node including node executing master agent.
+        /// </summary>
+        /// <param name="args"></param>
+        /// <param name="count">agents = count</param>
+        public void SpawnCountOfAgentsPerNode(string[] args, int count)
+        {
+            SpawnInternal(1, args, 6, Convert.ToDouble(count));
+        }
+
+
+        private void SpawnInternal(ushort count, string[] args, int strategy, double factor)
         {
             if (!IsMaster) throw new Exception("Only master agent can spawn new agents");
             if (count == MpiConsts.MasterAgentId || count == MpiConsts.BroadcastAgentId)
@@ -171,7 +208,7 @@ namespace DuoVia.MpiVisor
             var entryAssembly = Assembly.GetEntryAssembly();
             var agentExecutableName = Path.GetFileName(entryAssembly.Location);
             if (strategy > 0)
-                _nodeServiceProxy.SpawnStrategic(this.SessionId, count, agentExecutableName, package, args, strategy);
+                _nodeServiceProxy.SpawnStrategic(this.SessionId, count, agentExecutableName, package, args, strategy, factor);
             else
                 _nodeServiceProxy.Spawn(this.SessionId, count, agentExecutableName, package, args);
         }

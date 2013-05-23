@@ -91,17 +91,49 @@ namespace DuoVia.MpiVisor.Services
             }
         }
 
-        public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy)
+        public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor)
         {
+            ushort agentsPerNode = 1;
             switch(strategy)
             {
                 case 1:
                     //spawn one agent per cluster visor node - force count to 1
-                    Spawn(sessionId, 1, agentExecutableName, package, args); 
+                    Spawn(sessionId, agentsPerNode, agentExecutableName, package, args); 
                     break;
                 case 2:
                     //spawn one agent per cluster visor node cpu/core (logical processors)
-                    Spawn(sessionId, (ushort)Environment.ProcessorCount, agentExecutableName, package, args);
+                    agentsPerNode = (ushort)Environment.ProcessorCount;
+                    Spawn(sessionId, agentsPerNode, agentExecutableName, package, args);
+                    break;
+                case 3:
+                    //spawn one agent per cluster visor node cpu/core (logical processors) - 1
+                    agentsPerNode = (ushort)(Environment.ProcessorCount - 1);
+                    if (agentsPerNode < 1) agentsPerNode = 1;
+                    Spawn(sessionId, agentsPerNode, agentExecutableName, package, args);
+                    break;
+                case 4:
+                    //spawn one agent per cluster visor node cpu/core (logical processors) - (int)factor
+                    if (factor < 0.0) factor = 0.0;
+                    if (factor > Environment.ProcessorCount) factor = Environment.ProcessorCount - 1.0;
+                    agentsPerNode = (ushort)(Environment.ProcessorCount - (int)factor);
+                    if (agentsPerNode < 1) agentsPerNode = 1;
+                    Spawn(sessionId, agentsPerNode, agentExecutableName, package, args);
+                    break;
+                case 5:
+                    //spawn one agent per cluster visor node cpu/core (logical processors) * factor (percentage)
+                    if (factor < 0.0) factor = 0.1;
+                    if (factor > Environment.ProcessorCount * 10.0) factor = Environment.ProcessorCount * 10.0;
+                    agentsPerNode = (ushort)(Environment.ProcessorCount * factor);
+                    if (agentsPerNode < 1) agentsPerNode = 1;
+                    Spawn(sessionId, agentsPerNode, agentExecutableName, package, args);
+                    break;
+                case 6:
+                    //spawn (int)factor agents per cluster visor node cpu/core 
+                    if (factor < 0.0) factor = 1.0;
+                    if (factor > Environment.ProcessorCount * 10.0) factor = Environment.ProcessorCount * 10.0;
+                    agentsPerNode = (ushort)((int)factor);
+                    if (agentsPerNode < 1) agentsPerNode = 1;
+                    Spawn(sessionId, agentsPerNode, agentExecutableName, package, args);
                     break;
                 default:
                     //default standard behavior

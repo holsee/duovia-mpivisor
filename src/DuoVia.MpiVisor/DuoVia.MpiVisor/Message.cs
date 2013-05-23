@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using DuoVia.Net;
 
 namespace DuoVia.MpiVisor
 {
@@ -48,6 +49,29 @@ namespace DuoVia.MpiVisor
         /// <summary>
         /// Message content.
         /// </summary>
-        public object Content { get; set; }
+        public object Content
+        {
+            get
+            {
+                if (_contentBytes == null) return null;
+                if (_contentBytes.Length == 0) return _contentBytes;
+                if (_contentObject == null) _contentObject = _contentBytes.ToDeserializedObject();
+                return _contentObject;
+            }
+            set
+            {
+                _contentObject = value;
+                if (null == _contentObject)
+                    _contentBytes = null;
+                else
+                    _contentBytes = _contentObject.ToSerializedBytes();
+            }
+        }
+
+        //serialized message content
+        private byte[] _contentBytes { get; set; }
+
+        [NonSerialized]
+        private object _contentObject = null; //deserialized object to prevent multiple deserializations
     }
 }

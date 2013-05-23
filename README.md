@@ -10,10 +10,12 @@ Once you have your code running locally, flip the switch and you'll be running i
 
 #### CONTRIBUTE
 
-We hope you will use and help improve this library.  We take pull requests!
+We hope you will use and help improve this library. We take pull requests!
 Join the conversation in our open [Hip Chat][4].
+Our branching model will loosely follow [Vincent Driessen's model][5].
+Our versioning method will be guided by [Semantic Versioning 2.0.0-rc.2][6].
 
-#### LICESNE (APACHE V2)
+#### LICENSE (APACHE V2)
   
 Copyright (C) 2013 Duovia Inc.
 
@@ -28,7 +30,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+
 [1]: http://nuget.org/packages/DuoVia.MpiVisor/    "NuGet"
 [2]: http://mpapi.codeplex.com/          "MPAPI"
 [3]: http://osl.iu.edu/research/mpi.net/   "MPI.NET"
 [4]: https://www.hipchat.com/gHWO84CXp     "Hip Chat"
+[5]: http://nvie.com/posts/a-successful-git-branching-model/   "Vincent Driessen's model"
+[6]: http://semver.org/      "Semantic Versioning 2.0.0-rc.2"
+

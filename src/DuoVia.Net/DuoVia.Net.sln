@@ -1,0 +1,55 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuoVia.Net", "DuoVia.Net\DuoVia.Net.csproj", "{4F36B450-A225-4D13-9786-8B84AC25A304}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DuoVia.NetTests", "DuoVia.NetTests", "{FC943863-AC57-44E2-9D38-7AA355198A67}"
+	ProjectSection(SolutionItems) = preProject
+		DuoVia.NetTests\testing_readme.txt = DuoVia.NetTests\testing_readme.txt
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuoVia.NetTestCommon", "DuoVia.NetTests\DuoVia.NetTestCommon\DuoVia.NetTestCommon.csproj", "{5CD6F155-FCF9-48DE-92EE-C41DAEFB9361}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuoVia.NetTestHost", "DuoVia.NetTests\DuoVia.NetTestHost\DuoVia.NetTestHost.csproj", "{D5FD09BB-54CF-445F-834D-7D5B63F557F2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuoVia.NetTestClient1", "DuoVia.NetTests\DuoVia.NetTestClient1\DuoVia.NetTestClient1.csproj", "{BF075DB2-5C54-4DBC-8053-3BBE2ED209E2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuoVia.NetTestClient2", "DuoVia.NetTests\DuoVia.NetTestClient2\DuoVia.NetTestClient2.csproj", "{4E80C5BB-ABBC-4568-ACBF-BB9A9E1C7AF2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4F36B450-A225-4D13-9786-8B84AC25A304}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4F36B450-A225-4D13-9786-8B84AC25A304}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4F36B450-A225-4D13-9786-8B84AC25A304}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4F36B450-A225-4D13-9786-8B84AC25A304}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5CD6F155-FCF9-48DE-92EE-C41DAEFB9361}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5CD6F155-FCF9-48DE-92EE-C41DAEFB9361}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5CD6F155-FCF9-48DE-92EE-C41DAEFB9361}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5CD6F155-FCF9-48DE-92EE-C41DAEFB9361}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5FD09BB-54CF-445F-834D-7D5B63F557F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5FD09BB-54CF-445F-834D-7D5B63F557F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5FD09BB-54CF-445F-834D-7D5B63F557F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5FD09BB-54CF-445F-834D-7D5B63F557F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF075DB2-5C54-4DBC-8053-3BBE2ED209E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF075DB2-5C54-4DBC-8053-3BBE2ED209E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF075DB2-5C54-4DBC-8053-3BBE2ED209E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF075DB2-5C54-4DBC-8053-3BBE2ED209E2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4E80C5BB-ABBC-4568-ACBF-BB9A9E1C7AF2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E80C5BB-ABBC-4568-ACBF-BB9A9E1C7AF2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E80C5BB-ABBC-4568-ACBF-BB9A9E1C7AF2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E80C5BB-ABBC-4568-ACBF-BB9A9E1C7AF2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{5CD6F155-FCF9-48DE-92EE-C41DAEFB9361} = {FC943863-AC57-44E2-9D38-7AA355198A67}
+		{D5FD09BB-54CF-445F-834D-7D5B63F557F2} = {FC943863-AC57-44E2-9D38-7AA355198A67}
+		{BF075DB2-5C54-4DBC-8053-3BBE2ED209E2} = {FC943863-AC57-44E2-9D38-7AA355198A67}
+		{4E80C5BB-ABBC-4568-ACBF-BB9A9E1C7AF2} = {FC943863-AC57-44E2-9D38-7AA355198A67}
+	EndGlobalSection
+EndGlobal

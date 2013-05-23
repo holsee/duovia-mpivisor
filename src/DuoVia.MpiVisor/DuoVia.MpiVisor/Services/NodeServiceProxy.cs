@@ -25,9 +25,9 @@ namespace DuoVia.MpiVisor.Services
             Proxy.Spawn(sessionId, count, agentExecutableName, package, args);
         }
 
-        public void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy)
+        public void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor)
         {
-            Proxy.SpawnStrategic(sessionId, count, agentExecutableName, package, args, strategy);
+            Proxy.SpawnStrategic(sessionId, count, agentExecutableName, package, args, strategy, factor);
         }
 
         public void Send(Message message)

@@ -14,7 +14,7 @@ namespace DuoVia.MpiVisor.Server
             return echo;
         }
 
-        public void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy)
+        public void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor)
         {
             var request = new SpawnRequest
             {
@@ -23,7 +23,8 @@ namespace DuoVia.MpiVisor.Server
                 AgentExecutableName = agentExecutableName,
                 Package = package,
                 Args = args,
-                Strategy = strategy
+                Strategy = strategy,
+                Factor = factor
             };
             Visor.Current.EnqueueSpawnRequest(request);
         }
@@ -51,12 +52,6 @@ namespace DuoVia.MpiVisor.Server
             message.ToId = MpiConsts.BroadcastAgentId;
             this.Send(message);
         }
-
-        //public void BeginLogFileConsolidation(Guid sessionId, string destinationFileName)
-        //{
-        //    Visor.Current.EnqueueLogConsolidationRequest(
-        //        new LogConsolidationRequest { SessionId = sessionId, DestinationFileName = destinationFileName });
-        //}
 
         public void RegisterMasterAgent(Guid sessionId)
         {
