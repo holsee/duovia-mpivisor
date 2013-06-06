@@ -31,10 +31,10 @@ namespace DuoVia.MpiVisor.Server
                 _nodeServiceHost.Open();
 
                 _clusterService = new ClusterService();
-                _clusterServiceHost = new TcpHost(_clusterService, Visor.Current.EndPoint);
+                _clusterServiceHost = new TcpHost(_clusterService, ServerVisor.Current.EndPoint);
                 _clusterServiceHost.Open();
 
-                Visor.Current.RegisterInstance(); //register self and with master or backup
+                ServerVisor.Current.RegisterInstance(); //register self and with master or backup
             }
             catch (Exception e)
             {
@@ -53,7 +53,7 @@ namespace DuoVia.MpiVisor.Server
                     //clean up
                     _nodeServiceHost.Close();
                     _clusterServiceHost.Close();
-                    Visor.Current.Dispose();
+                    ServerVisor.Current.Dispose();
                 }
                 catch (Exception e)
                 {

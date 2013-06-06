@@ -13,10 +13,10 @@ using System.Threading.Tasks;
 
 namespace DuoVia.MpiVisor.Server
 {
-    internal sealed class Visor : IDisposable
+    internal sealed class ServerVisor : IDisposable
     {
         //singleton instance
-        private static readonly Visor _current = new Visor();
+        private static readonly ServerVisor _current = new ServerVisor();
 
         private bool _continueProcessing = true;
         private readonly IPEndPoint _selfEndpoint;
@@ -38,7 +38,7 @@ namespace DuoVia.MpiVisor.Server
 
         public IPEndPoint EndPoint { get { return _selfEndpoint; } }
 
-        private Visor()
+        private ServerVisor()
         {
             //configure self, master and backup endpoints
             var selfConfig = ConfigurationManager.AppSettings["ClusterNodeAddress"];
@@ -70,7 +70,7 @@ namespace DuoVia.MpiVisor.Server
             _spawningThread.Start();
         }
 
-        public static Visor Current { get { return _current; } }
+        public static ServerVisor Current { get { return _current; } }
 
         public void RegisterInstance()
         {

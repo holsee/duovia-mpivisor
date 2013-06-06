@@ -26,7 +26,7 @@ namespace DuoVia.MpiVisor.Server
                 Strategy = strategy,
                 Factor = factor
             };
-            Visor.Current.EnqueueSpawnRequest(request);
+            ServerVisor.Current.EnqueueSpawnRequest(request);
         }
 
         public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args)
@@ -39,12 +39,12 @@ namespace DuoVia.MpiVisor.Server
                 Package = package, 
                 Args = args 
             };
-            Visor.Current.EnqueueSpawnRequest(request);
+            ServerVisor.Current.EnqueueSpawnRequest(request);
         }
 
         public void Send(Message message)
         {
-            Visor.Current.EnqueueMessage(message);
+            ServerVisor.Current.EnqueueMessage(message);
         }
 
         public void Broadcast(Message message)
@@ -55,20 +55,20 @@ namespace DuoVia.MpiVisor.Server
 
         public void RegisterMasterAgent(Guid sessionId)
         {
-            Visor.Current.RegisterMasterAgent(sessionId);
+            ServerVisor.Current.RegisterMasterAgent(sessionId);
         }
 
         public void UnRegisterAgent(Guid sessionId, ushort agentId)
         {
             if (agentId == MpiConsts.MasterAgentId)
-                Visor.Current.KillSession(sessionId);
+                ServerVisor.Current.KillSession(sessionId);
             else
-                Visor.Current.UnRegisterLocalAgent(sessionId, agentId);
+                ServerVisor.Current.UnRegisterLocalAgent(sessionId, agentId);
         }
 
         public ushort[] GetRunningAgents(Guid sessionId)
         {
-            return Visor.Current.GetRunningAgents(sessionId);
+            return ServerVisor.Current.GetRunningAgents(sessionId);
         }
     }
 }

@@ -16,20 +16,30 @@ namespace DuoVia.MpiVisor
         //singleton instance
         private static Agent _current = null;
 
-        private const int maxAttempts = 24000; //50ms is 20 minutes
-
+        //node service factory and client proxy - allows agent to talk to node service
         private readonly NodeServiceFactory _nodeServiceFactory = null;
         private readonly INodeService _nodeServiceProxy = null;
+        
+        //agent service host and implementation - allows node service to talk to agent
         private readonly AgentService _agentService = null;
         private readonly NpHost _agentServiceHost = null;
         private readonly DateTime _startedAt = DateTime.Now;
 
+        //incoming message queue and reset event to signal blocking receive message methods
+        //the EnqueuMessage method is called by the thread running the agent service which
+        //signals the event so that the receive message method can continue and return the message
         private ManualResetEvent _incomingMessageWaitHandle = new ManualResetEvent(false);
         private LinkedList<Message> _incomingMessageBuffer = new LinkedList<Message>();
         private bool continueReceiving = true;
+
+        //used to prevent execution of Dispose code twice which would throw an exception
         private bool isDisposed = false;
 
-        //singleton - cannot create instance publicly
+        //determines how long a primary agent (the process) will wait for a child agent (app domain)
+        //to complete and dispose before completing the dispose of the primary agent
+        private const int maxMinutesWaitForChildAgentCompletion = 20;
+
+        //singleton - cannot create instance publicly - this is called by the Connect method
         private Agent(bool useInternalNodeService = false)
         {
             // initialize context using app domain data, else create master agent
@@ -88,7 +98,7 @@ namespace DuoVia.MpiVisor
         /// </summary>
         /// <param name="forceLocal"></param>
         /// <returns></returns>
-        public static Agent Connect(bool forceLocal = false)
+        internal static Agent Connect(bool forceLocal = false)
         {
             if (null == _current) //only connect once
             {
@@ -457,18 +467,30 @@ namespace DuoVia.MpiVisor
         /// </summary>
         public void Dispose()
         {
+            //prevent dispose being called twice
+            isDisposed = true;
+
+            //tell message receiving thread to ignore any incoming messages
+            continueReceiving = false;
+
             //wait for child agents to end
-            var attempts = 0;
-            while (attempts < maxAttempts && 0 < _agentService.GetChildAgentCount())
+            var disposeStarted = DateTime.Now;
+            while ((DateTime.Now - disposeStarted).TotalMinutes < maxMinutesWaitForChildAgentCompletion 
+                && _agentService.GetChildAgentCount() > 0)
             {
                 System.Threading.Thread.Sleep(50);
-                attempts++;
             }
 
-            isDisposed = true;
-            Send(new Message(SessionId, AgentId, MpiConsts.MasterAgentId, SystemMessageTypes.Stopped, null));
-            _nodeServiceProxy.UnRegisterAgent(SessionId, AgentId); //notify node server this agent is gone
-            continueReceiving = false;
+            //sent stopped message to master if this agent is not the master
+            if (AgentId != MpiConsts.MasterAgentId)
+            {
+                Send(new Message(SessionId, AgentId, MpiConsts.MasterAgentId, SystemMessageTypes.Stopped, null));
+            }
+
+            //notify node server this agent is gone
+            _nodeServiceProxy.UnRegisterAgent(SessionId, AgentId); 
+
+            //dispose and close other resources
             _incomingMessageWaitHandle.Dispose();
             _nodeServiceFactory.Dispose();
             if (null != _agentServiceHost) _agentServiceHost.Close();
