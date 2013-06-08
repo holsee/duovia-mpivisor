@@ -219,6 +219,7 @@ namespace DuoVia.MpiVisor.Server
                 }
                 catch (Exception e)
                 {
+                    SendFailedDeliveryMessage(message);
                     Log.Error("error sending message local: {0}", e);
                 }
             }
@@ -240,6 +241,7 @@ namespace DuoVia.MpiVisor.Server
                 }
                 catch (Exception e)
                 {
+                    SendFailedDeliveryMessage(message);
                     Log.Error("error relaying message: {0}", e);
                 }
             }
@@ -267,6 +269,7 @@ namespace DuoVia.MpiVisor.Server
                             }
                             catch (Exception e)
                             {
+                                SendFailedDeliveryMessage(message); 
                                 Log.Error("relay message error: {0}", e);
                             }
                         }
@@ -286,9 +289,19 @@ namespace DuoVia.MpiVisor.Server
                     }
                     catch (Exception e)
                     {
+                        SendFailedDeliveryMessage(message);
                         Log.Error("local message send error: {0}", e);
                     }
                 }
+            }
+        }
+
+        private void SendFailedDeliveryMessage(Message originalMessage)
+        {
+            if (originalMessage.MessageType != SystemMessageTypes.DeliveryFailure)
+            {
+                //reverse direction of original message - from is to and to is from
+                EnqueueMessage(new Message(originalMessage.SessionId, originalMessage.ToId, originalMessage.FromId, SystemMessageTypes.DeliveryFailure, originalMessage));
             }
         }
 

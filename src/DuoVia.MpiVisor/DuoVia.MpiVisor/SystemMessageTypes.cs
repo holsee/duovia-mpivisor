@@ -13,6 +13,7 @@ namespace DuoVia.MpiVisor
         public const int Error = -4;
         public const int Shutdown = -5;
         public const int LogShuttle = -6;
+        public const int DeliveryFailure = -7;
 
         //note -999999 is reserved for log message shuttling
         //     -987654 is reserved as the NULL message type

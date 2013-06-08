@@ -35,6 +35,14 @@ namespace DuoViaTestAgent
                         Log.Info("AgentId {0} sent shut down message", msg.FromId);
                         continueProcessing = false;
                         break;
+                    case SystemMessageTypes.DeliveryFailure:
+                        //this means master is no longer responding, so shut this agent down
+                        //we only send messages to master here - had we sent to another agent,
+                        //we would need to check to see if the msg.FromId is 0 (master)
+                        //the msg.Content contains the orginal Message object sent
+                        Log.Info("Visor reports message delivery failure.", msg.FromId);
+                        continueProcessing = false;
+                        break;
                     default:
                         Log.Info("AgentId {0} sent {1} with {2}", msg.FromId, msg.MessageType, msg.Content);
                         break;

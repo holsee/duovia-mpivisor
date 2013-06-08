@@ -116,6 +116,14 @@ namespace FindMyPrimes
                                 agentsShutdown++;
                                 if (agentsShutdown >= agentsToSpawn) continueProcessing = false;
                                 break;
+                            case SystemMessageTypes.DeliveryFailure:
+                                //message sent to spawned agent was not able to be delivered
+                                //the msg.Content contains the orginal Message object sent
+                                Log.Info("Visor reports message delivery failure.", msg.FromId);
+                                break;
+                            default:
+                                Log.Info("AgentId {0} sent {1} with {2}", msg.FromId, msg.MessageType, msg.Content);
+                                break;
                         }
                     }
                     while (continueProcessing);
@@ -139,6 +147,15 @@ namespace FindMyPrimes
                                 break;
                             case SystemMessageTypes.Shutdown:
                                 continueProcessing = false;
+                                break;
+                            case SystemMessageTypes.DeliveryFailure:
+                                //this means master is no longer responding, so shut this agent down
+                                //the msg.Content contains the orginal Message object sent
+                                Log.Info("Visor reports message delivery failure.", msg.FromId);
+                                continueProcessing = false;
+                                break;
+                            default:
+                                Log.Info("AgentId {0} sent {1} with {2}", msg.FromId, msg.MessageType, msg.Content);
                                 break;
                         }
                     }
