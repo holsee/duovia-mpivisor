@@ -50,6 +50,11 @@ namespace DuoVia.MpiVisor.Services
             InternalVisor.Current.UnRegisterAgent(sessionId, agentId);
         }
 
+        public void KillSession(Guid sessionId)
+        {
+            InternalVisor.Current.KillSession(sessionId);
+        }
+
         public ushort[] GetRunningAgents(Guid sessionId)
         {
             return InternalVisor.Current.GetRunningAgents(sessionId);

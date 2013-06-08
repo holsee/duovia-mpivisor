@@ -23,5 +23,6 @@ namespace DuoVia.MpiVisor.Services
         void RegisterMasterAgent(Guid sessionId);
         void UnRegisterAgent(Guid sessionId, ushort agentId);
         ushort[] GetRunningAgents(Guid sessionId);
+        void KillSession(Guid sessionId);
     }
 }

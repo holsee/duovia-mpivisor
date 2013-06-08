@@ -60,10 +60,12 @@ namespace DuoVia.MpiVisor.Server
 
         public void UnRegisterAgent(Guid sessionId, ushort agentId)
         {
-            if (agentId == MpiConsts.MasterAgentId)
-                ServerVisor.Current.KillSession(sessionId);
-            else
-                ServerVisor.Current.UnRegisterLocalAgent(sessionId, agentId);
+            ServerVisor.Current.UnRegisterLocalAgent(sessionId, agentId);
+        }
+
+        public void KillSession(Guid sessionId)
+        {
+            ServerVisor.Current.KillSession(sessionId);
         }
 
         public ushort[] GetRunningAgents(Guid sessionId)

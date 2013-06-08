@@ -438,6 +438,15 @@ namespace DuoVia.MpiVisor
         }
 
         /// <summary>
+        /// Terminates processing on all spawned agents. Can only be called by Master agent.
+        /// </summary>
+        public void KillSession()
+        {
+            if (AgentId > 0) return;
+            _nodeServiceProxy.KillSession(SessionId);
+        }
+
+        /// <summary>
         /// Adds message to incoming queue to be "received". 
         /// Called by agent service to deliver messages.
         /// </summary>

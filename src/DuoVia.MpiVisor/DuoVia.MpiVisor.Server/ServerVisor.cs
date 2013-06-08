@@ -26,7 +26,7 @@ namespace DuoVia.MpiVisor.Server
         private readonly string _packagesDir;
 
         private List<ClusterServerInfo> _runningClusterServers = new List<ClusterServerInfo>();
-        private Dictionary<Guid, AgentPortfolio> _agentPortfolios = new Dictionary<Guid,AgentPortfolio>();
+        private Dictionary<Guid, AgentPortfolio> _agentPortfolios = new Dictionary<Guid, AgentPortfolio>();
 
         private ManualResetEvent _outgoingMessageWaitHandle = new ManualResetEvent(false);
         private LinkedList<Message> _outgoingMessageBuffer = new LinkedList<Message>();
@@ -650,7 +650,7 @@ namespace DuoVia.MpiVisor.Server
                             }
                             catch (Exception e)
                             {
-                                Log.Error("register master agent: {0}", e);
+                                Log.Error("proxy kill session: {0}", e);
                             }
                         }, TaskCreationOptions.LongRunning);
                     }
@@ -738,7 +738,7 @@ namespace DuoVia.MpiVisor.Server
                             }
                             catch (Exception e)
                             {
-                                Log.Error("register master agent: {0}", e);
+                                Log.Error("proxy UnRegisterAgent: {0}", e);
                             }
                         }, TaskCreationOptions.LongRunning);
                     }
@@ -879,7 +879,7 @@ namespace DuoVia.MpiVisor.Server
                 }
                 catch (Exception e)
                 {
-                    Log.Error("register master agent: {0}", e);
+                    Log.Error("unregister agent: {0}", e);
                 }
             }, TaskCreationOptions.LongRunning);
         }

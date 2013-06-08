@@ -251,6 +251,25 @@ namespace DuoVia.MpiVisor.Services
             }
         }
 
+        public void KillSession(Guid sessionId)
+        {
+            lock (_agentProfiles)
+            {
+                foreach (var agent in _agentProfiles)
+                {
+                    try
+                    {
+                        AppDomain.Unload(agent.Value.Domain);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error("agent kill local {0}", e);
+                    }
+                }
+            }
+            _continueSendingMessages = false;
+        }
+
         public ushort[] GetRunningAgents(Guid sessionId)
         {
             lock (_agentProfiles)

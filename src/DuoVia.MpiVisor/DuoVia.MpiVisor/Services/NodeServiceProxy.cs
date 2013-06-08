@@ -50,6 +50,11 @@ namespace DuoVia.MpiVisor.Services
             Proxy.UnRegisterAgent(sessionId, agentId);
         }
 
+        public void KillSession(Guid sessionId)
+        {
+            Proxy.KillSession(sessionId);
+        }
+
         public ushort[] GetRunningAgents(Guid sessionId)
         {
             return Proxy.GetRunningAgents(sessionId);
