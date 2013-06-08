@@ -11,7 +11,7 @@ namespace DuoVia.MpiVisor.Server
     public interface IClusterService
     {
         void DirectedSpawnRequest(SpawnRequest request);
-        void RegisterAgent(Guid sessionId, ushort agentId, string ipAddress, int port);
+        void RegisterAgent(SessionInfo sessionInfo, ushort agentId, string ipAddress, int port);
         void UnRegisterAgent(Guid sessionId, ushort agentId);
         void RegisterClusterNode(ClusterServerInfo info);
         void UnRegisterClusterNode(ClusterServerInfo info);

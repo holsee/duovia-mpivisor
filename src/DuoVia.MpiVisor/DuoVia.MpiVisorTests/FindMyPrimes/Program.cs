@@ -65,7 +65,7 @@ namespace FindMyPrimes
             ushort agentsToSpawn = 12;
             ushort agentsShutdown = 0;
             //use Visor.ConnectDistributed to run distributed across nodes
-            using (Visor.ConnectLocal())
+            using (Visor.ConnectLocal(args))
             {
                 if (Agent.Current.IsMaster)
                 {

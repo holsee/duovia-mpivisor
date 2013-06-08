@@ -13,7 +13,7 @@ namespace DuoViaTestAgent
             //connect agent and dispose at end of execution
             //use forceLocal to run in a single process with internal visor
             //use Visor.ConnectDistributed to run distributed across nodes
-            using (Visor.ConnectLocal())  
+            using (Visor.ConnectLocal(args))  
             {
                 //default is File only - spawned agents shuttle logs back to master
                 Log.LogType = LogType.Both; 

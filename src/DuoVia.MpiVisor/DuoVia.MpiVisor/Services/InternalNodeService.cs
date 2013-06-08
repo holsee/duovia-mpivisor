@@ -20,14 +20,14 @@ namespace DuoVia.MpiVisor.Services
             return echo;
         }
 
-        public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args)
+        public void Spawn(SessionInfo sessionInfo, ushort count, string agentExecutableName, byte[] package, string[] args)
         {
-            InternalVisor.Current.Spawn(sessionId, count, agentExecutableName, package, args);
+            InternalVisor.Current.Spawn(sessionInfo, count, agentExecutableName, package, args);
         }
 
-        public void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor)
+        public void SpawnStrategic(SessionInfo sessionInfo, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor)
         {
-            InternalVisor.Current.Spawn(sessionId, count, agentExecutableName, package, args, strategy, factor);
+            InternalVisor.Current.Spawn(sessionInfo, count, agentExecutableName, package, args, strategy, factor);
         }
 
         public void Send(Message message)
@@ -40,9 +40,9 @@ namespace DuoVia.MpiVisor.Services
             InternalVisor.Current.Broadcast(message);
         }
 
-        public void RegisterMasterAgent(Guid sessionId)
+        public void RegisterMasterAgent(SessionInfo sessionInfo)
         {
-            InternalVisor.Current.RegisterMasterAgent(sessionId);
+            InternalVisor.Current.RegisterMasterAgent(sessionInfo);
         }
 
         public void UnRegisterAgent(Guid sessionId, ushort agentId)

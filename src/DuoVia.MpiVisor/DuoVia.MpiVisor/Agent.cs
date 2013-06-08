@@ -40,15 +40,17 @@ namespace DuoVia.MpiVisor
         private const int maxMinutesWaitForChildAgentCompletion = 20;
 
         //singleton - cannot create instance publicly - this is called by the Connect method
-        private Agent(bool useInternalNodeService = false)
+        private Agent(string arguments, bool useInternalNodeService = false)
         {
             // initialize context using app domain data, else create master agent
             var sessionIdData = AppDomain.CurrentDomain.GetData("SessionId");
             var agentIdData = AppDomain.CurrentDomain.GetData("AgentId");
             if (null != sessionIdData && null != agentIdData)
             {
-                SessionId = (Guid)sessionIdData;
+                var id = (Guid)sessionIdData;
+                SessionId = id;
                 AgentId = (ushort)agentIdData;
+                Session = new SessionInfo(id, AppDomain.CurrentDomain.FriendlyName.Replace(".exe", string.Empty), arguments);
             }
             else
             {
@@ -60,14 +62,18 @@ namespace DuoVia.MpiVisor
                 {
                     var sessionIdVar = p.StartInfo.EnvironmentVariables["SessionId"];
                     var agentIdVar = p.StartInfo.EnvironmentVariables["AgentId"];
-                    SessionId = Guid.Parse(sessionIdVar);
+                    var id = Guid.Parse(sessionIdVar);
+                    SessionId = id;
                     AgentId = ushort.Parse(agentIdVar);
+                    Session = new SessionInfo(id, p.ProcessName, arguments);
                 }
                 else
                 {
                     //no domain or environment variables
-                    SessionId = Guid.NewGuid();
+                    var id = Guid.NewGuid();
+                    SessionId = id;
                     AgentId = 0;
+                    Session = new SessionInfo(id, Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location), arguments);
                 }
             }
 
@@ -98,14 +104,15 @@ namespace DuoVia.MpiVisor
         /// </summary>
         /// <param name="forceLocal"></param>
         /// <returns></returns>
-        internal static Agent Connect(bool forceLocal = false)
+        internal static Agent Connect(string[] args, bool forceLocal = false)
         {
             if (null == _current) //only connect once
             {
-                _current = new Agent(forceLocal);
+                string arguments = (null == args) ? null : string.Join(" ", args);
+                _current = new Agent(arguments, forceLocal);
                 if (_current.IsMaster)
                 {
-                    _current._nodeServiceProxy.RegisterMasterAgent(_current.SessionId);
+                    _current._nodeServiceProxy.RegisterMasterAgent(_current.Session);
                 }
                 else
                 {
@@ -131,6 +138,11 @@ namespace DuoVia.MpiVisor
         /// The unique session id for this instance of the application execution context.
         /// </summary>
         public Guid SessionId { get; set; }
+
+        /// <summary>
+        /// Complete information about this session.
+        /// </summary>
+        public SessionInfo Session { get; set; }
 
         /// <summary>
         /// Simple way to determine if the agent id is 0.
@@ -218,9 +230,9 @@ namespace DuoVia.MpiVisor
             var entryAssembly = Assembly.GetEntryAssembly();
             var agentExecutableName = Path.GetFileName(entryAssembly.Location);
             if (strategy > 0)
-                _nodeServiceProxy.SpawnStrategic(this.SessionId, count, agentExecutableName, package, args, strategy, factor);
+                _nodeServiceProxy.SpawnStrategic(this.Session, count, agentExecutableName, package, args, strategy, factor);
             else
-                _nodeServiceProxy.Spawn(this.SessionId, count, agentExecutableName, package, args);
+                _nodeServiceProxy.Spawn(this.Session, count, agentExecutableName, package, args);
         }
 
         /// <summary>

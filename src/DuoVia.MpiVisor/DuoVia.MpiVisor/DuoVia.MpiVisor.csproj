@@ -55,6 +55,7 @@
     <Compile Include="Services\NodeServiceFactory.cs" />
     <Compile Include="Services\NodeServiceProxy.cs" />
     <Compile Include="MpiConsts.cs" />
+    <Compile Include="SessionInfo.cs" />
     <Compile Include="SystemMessageTypes.cs" />
     <Compile Include="Visor.cs" />
     <Compile Include="ZipUtils.cs" />

@@ -14,11 +14,11 @@ namespace DuoVia.MpiVisor.Server
             return echo;
         }
 
-        public void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor)
+        public void SpawnStrategic(SessionInfo sessionInfo, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor)
         {
             var request = new SpawnRequest
             {
-                SessionId = sessionId,
+                Session = sessionInfo,
                 Count = count,
                 AgentExecutableName = agentExecutableName,
                 Package = package,
@@ -29,11 +29,11 @@ namespace DuoVia.MpiVisor.Server
             ServerVisor.Current.EnqueueSpawnRequest(request);
         }
 
-        public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args)
+        public void Spawn(SessionInfo sessionInfo, ushort count, string agentExecutableName, byte[] package, string[] args)
         {
             var request = new SpawnRequest 
-            { 
-                SessionId = sessionId, 
+            {
+                Session = sessionInfo, 
                 Count = count, 
                 AgentExecutableName = agentExecutableName, 
                 Package = package, 
@@ -53,9 +53,9 @@ namespace DuoVia.MpiVisor.Server
             this.Send(message);
         }
 
-        public void RegisterMasterAgent(Guid sessionId)
+        public void RegisterMasterAgent(SessionInfo sessionInfo)
         {
-            ServerVisor.Current.RegisterMasterAgent(sessionId);
+            ServerVisor.Current.RegisterMasterAgent(sessionInfo);
         }
 
         public void UnRegisterAgent(Guid sessionId, ushort agentId)

@@ -19,9 +19,9 @@ namespace DuoVia.MpiVisor.Server
             ServerVisor.Current.EnqueueSpawnRequest(request);
         }
 
-        public void RegisterAgent(Guid sessionId, ushort agentId, string ipAddress, int port)
+        public void RegisterAgent(SessionInfo sessionInfo, ushort agentId, string ipAddress, int port)
         {
-            ServerVisor.Current.RegisterAgent(sessionId, agentId, ipAddress, port);
+            ServerVisor.Current.RegisterAgent(sessionInfo, agentId, ipAddress, port);
         }
 
         public void UnRegisterAgent(Guid sessionId, ushort agentId)
