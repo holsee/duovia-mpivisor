@@ -16,21 +16,27 @@ namespace DuoVia.MpiVisor
         //singleton instance
         private static Agent _current = null;
 
-        //node service factory and client proxy - allows agent to talk to node service
-        private readonly NodeServiceFactory _nodeServiceFactory = null;
-        private readonly INodeService _nodeServiceProxy = null;
-        
-        //agent service host and implementation - allows node service to talk to agent
-        private readonly AgentService _agentService = null;
-        private readonly NpHost _agentServiceHost = null;
+        //initialization values required to create Agent dependencies
         private readonly DateTime _startedAt = DateTime.Now;
+        private readonly string _arguments = null;
+        private readonly bool _runInSingleLocalProcess = false;
 
-        //incoming message queue and reset event to signal blocking receive message methods
-        //the EnqueuMessage method is called by the thread running the agent service which
-        //signals the event so that the receive message method can continue and return the message
-        private ManualResetEvent _incomingMessageWaitHandle = new ManualResetEvent(false);
-        private LinkedList<Message> _incomingMessageBuffer = new LinkedList<Message>();
-        private bool continueReceiving = true;
+        //node service factory and client proxy - allows agent to talk to node service
+        private INodeServiceFactory _nodeServiceFactory = null;
+        private INodeService _nodeServiceProxy = null;
+
+        //agent service host and implementation - allows node service to talk to agent
+        private IAgentService _agentService = null;
+        private NpHost _agentServiceHost = null;
+
+        //dependency to create or get session and set agent id
+        private ISessionFactory _sessionFactory = null;
+
+        //agent spawning factory dependency
+        private IWorkerFactory _workerFactory = null;
+
+        //message queue dependency
+        IMessageQueue _messageQueue = null;
 
         //used to prevent execution of Dispose code twice which would throw an exception
         private bool isDisposed = false;
@@ -40,76 +46,64 @@ namespace DuoVia.MpiVisor
         private const int maxMinutesWaitForChildAgentCompletion = 20;
 
         //singleton - cannot create instance publicly - this is called by the Connect method
-        private Agent(string arguments, bool useInternalNodeService = false)
+        private Agent(string arguments, bool runInSingleLocalProcess, 
+            INodeServiceFactory nodeServiceFactory, IAgentService agentService, IMessageQueue messageQueue, IWorkerFactory workerFactory)
+        {
+            _arguments = arguments;
+            _runInSingleLocalProcess = runInSingleLocalProcess;
+            
+            //optional injected dependencies - if null, InitializeAgentState will create default from implementation
+            _nodeServiceFactory = nodeServiceFactory;
+            _agentService = agentService;
+            _messageQueue = messageQueue;
+            _workerFactory = workerFactory;
+            
+            //now we need to set up the agent's state to determine agentId, Session info, and create the message queue.
+            InitializeAgentState();
+        }
+
+        private void InitializeAgentState()
         {
             // initialize context using app domain data, else create master agent
-            var sessionIdData = AppDomain.CurrentDomain.GetData("SessionId");
-            var agentIdData = AppDomain.CurrentDomain.GetData("AgentId");
-            if (null != sessionIdData && null != agentIdData)
-            {
-                var id = (Guid)sessionIdData;
-                SessionId = id;
-                AgentId = (ushort)agentIdData;
-                Session = new SessionInfo(id, AppDomain.CurrentDomain.FriendlyName.Replace(".exe", string.Empty), arguments);
-            }
-            else
-            {
-                //only use environment variables when no app domain data exists to assure that 
-                //these are used on the first run of a spawn agent on a given cluster node
-                var p = Process.GetCurrentProcess();
-                if (p.StartInfo.EnvironmentVariables.ContainsKey("SessionId")
-                    && p.StartInfo.EnvironmentVariables.ContainsKey("AgentId"))
-                {
-                    var sessionIdVar = p.StartInfo.EnvironmentVariables["SessionId"];
-                    var agentIdVar = p.StartInfo.EnvironmentVariables["AgentId"];
-                    var id = Guid.Parse(sessionIdVar);
-                    SessionId = id;
-                    AgentId = ushort.Parse(agentIdVar);
-                    Session = new SessionInfo(id, p.ProcessName, arguments);
-                }
-                else
-                {
-                    //no domain or environment variables
-                    var id = Guid.NewGuid();
-                    SessionId = id;
-                    AgentId = 0;
-                    Session = new SessionInfo(id, Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location), arguments);
-                }
-            }
+            _sessionFactory = _sessionFactory ?? new SessionFactory();
+            ushort assignedAgentId;
+            Session = _sessionFactory.CreateSession(_arguments, out assignedAgentId);
+            AgentId = assignedAgentId;
 
             //create connection to NodeService 
-            _nodeServiceFactory = new NodeServiceFactory();
-            _nodeServiceProxy = _nodeServiceFactory.CreateConnection(this.Name, useInternalNodeService); 
+            _nodeServiceFactory = _nodeServiceFactory ?? new NodeServiceFactory();
+            _nodeServiceProxy = _nodeServiceFactory.CreateConnection(this.Name, _runInSingleLocalProcess); 
 
             //open AgentService host to allow server to talk to this agent
             //pipeName is always agent Name to allow multiple agent instances on same machine
-            _agentService = new AgentService();
+            _agentService = _agentService ?? new AgentService();
             _agentServiceHost = new NpHost(_agentService, this.Name); 
             _agentServiceHost.Open();
 
-            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+            //create message queue if not already injected
+            _messageQueue = _messageQueue ?? new MessageQueue(AgentId, Session, _nodeServiceProxy);
+
+            //only create an _agentFactory if this is the master - slaves cannot spawn new agents
+            //even if dependency was injected, set to null if not master agent
+            _workerFactory = (assignedAgentId == MpiConsts.MasterAgentId) 
+                ? _workerFactory ?? new WorkerFactory(Session, _nodeServiceProxy, _nodeServiceFactory.IsInternalServer) 
+                : null;
         }
 
-        private void CurrentDomain_ProcessExit(object sender, EventArgs e)
-        {
-            try
-            {
-                if (!isDisposed) this.Dispose(); //attempt to execute dispose logic if not already disposed
-            }
-            catch { }
-        } 
-
         /// <summary>
-        /// Call to create and connect current agent context. Required to use Current agent context.
+        /// Internal. Used only by Visor class.
+        /// Call to create and connect current agent context. 
+        /// Required to construct singleton Current.
         /// </summary>
-        /// <param name="forceLocal"></param>
+        /// <param name="runInSingleLocalProcess"></param>
         /// <returns></returns>
-        internal static Agent Connect(string[] args, bool forceLocal = false)
+        internal static Agent Create(string[] args, bool runInSingleLocalProcess,
+            INodeServiceFactory nodeServiceFactory, IAgentService agentService, IMessageQueue messageQueue, IWorkerFactory workerFactory)
         {
             if (null == _current) //only connect once
             {
                 string arguments = (null == args) ? null : string.Join(" ", args);
-                _current = new Agent(arguments, forceLocal);
+                _current = new Agent(arguments, runInSingleLocalProcess, nodeServiceFactory, agentService, messageQueue, workerFactory);
                 if (_current.IsMaster)
                 {
                     _current._nodeServiceProxy.RegisterMasterAgent(_current.Session);
@@ -117,7 +111,7 @@ namespace DuoVia.MpiVisor
                 else
                 {
                     //spawned agents send started message back to master agent
-                    _current.Send(new Message(_current.SessionId,
+                    _current.MessageQueue.Send(new Message(_current.Session.SessionId,
                         _current.AgentId, MpiConsts.MasterAgentId, SystemMessageTypes.Started, null));
                 }
             }
@@ -125,7 +119,7 @@ namespace DuoVia.MpiVisor
         }
 
         /// <summary>
-        /// The current agent context used to interact with Visor.
+        /// The current agent context used to interact with InternalVisor or ServerVisor.
         /// </summary>
         public static Agent Current { get { return _current; } }
 
@@ -135,14 +129,19 @@ namespace DuoVia.MpiVisor
         public ushort AgentId { get; set; }
 
         /// <summary>
-        /// The unique session id for this instance of the application execution context.
-        /// </summary>
-        public Guid SessionId { get; set; }
-
-        /// <summary>
         /// Complete information about this session.
         /// </summary>
-        public SessionInfo Session { get; set; }
+        public SessionInfo Session { get; private set; }
+
+        /// <summary>
+        /// Used to spawn new worker agents. Null if not master agent.
+        /// </summary>
+        public IWorkerFactory WorkerFactory { get { return _workerFactory; } }
+
+        /// <summary>
+        /// Used to send and receive messages to and from other agents.
+        /// </summary>
+        public IMessageQueue MessageQueue { get { return _messageQueue; } }
 
         /// <summary>
         /// Simple way to determine if the agent id is 0.
@@ -152,293 +151,8 @@ namespace DuoVia.MpiVisor
         /// <summary>
         /// The name of this agent instance. Combines agent id and session id.
         /// </summary>
-        public string Name { get { return string.Format("{0}-{1}", AgentId, SessionId); } }
+        public string Name { get { return string.Format("{0}-{1}", AgentId, (Session != null) ? Session.SessionId : Guid.Empty); } }
 
-        /// <summary>
-        /// Spawn worker agents from master agent. Only master agent can spawn worker agents.
-        /// </summary>
-        /// <param name="count"></param>
-        /// <param name="args"></param>
-        public void SpawnAgents(ushort count, string[] args)
-        {
-            SpawnInternal(count, args, 0, 0.0);
-        }
-
-        /// <summary>
-        /// Spawn one worker agent per cluster node including node executing master agent.
-        /// </summary>
-        /// <param name="args"></param>
-        public void SpawnOneAgentPerNode(string[] args)
-        {
-            SpawnInternal(1, args, 1, 0.0);
-        }
-
-        /// <summary>
-        /// Spawn one worker agent per logical processor on each cluster node including node executing master agent.
-        /// </summary>
-        /// <param name="args"></param>
-        public void SpawnOneAgentPerLogicalProcessor(string[] args)
-        {
-            SpawnInternal(1, args, 2, 0.0);
-        }
-
-        /// <summary>
-        /// Spawn one worker agent per logical processor, less one, on each cluster node including node executing master agent.
-        /// </summary>
-        /// <param name="args"></param>
-        public void SpawnOneAgentPerLogicalProcessorLessOne(string[] args)
-        {
-            SpawnInternal(1, args, 3, 0.0);
-        }
-        /// <summary>
-        /// Spawn one worker agent per logical processor, less one, on each cluster node including node executing master agent.
-        /// </summary>
-        /// <param name="args"></param>
-        /// <param name="count">agents = LogicalProcessCount - count</param>
-        public void SpawnOneAgentPerLogicalProcessorLessCount(string[] args, int count)
-        {
-            SpawnInternal(1, args, 4, Convert.ToDouble(count));
-        }
-        /// <summary>
-        /// Spawn worker agents by factor multiplied by number of logical processors on each cluster node including node executing master agent.
-        /// </summary>
-        /// <param name="args"></param>
-        /// <param name="factor">agents = LogicalProcessCount * factor</param>
-        public void SpawnOneAgentAsFactorOfLogicalProcessorCount(string[] args, double factor)
-        {
-            SpawnInternal(1, args, 5, factor);
-        }
-        /// <summary>
-        /// Spawn count of worker agents on each cluster node including node executing master agent.
-        /// </summary>
-        /// <param name="args"></param>
-        /// <param name="count">agents = count</param>
-        public void SpawnCountOfAgentsPerNode(string[] args, int count)
-        {
-            SpawnInternal(1, args, 6, Convert.ToDouble(count));
-        }
-
-
-        private void SpawnInternal(ushort count, string[] args, int strategy, double factor)
-        {
-            if (!IsMaster) throw new Exception("Only master agent can spawn new agents");
-            if (count == MpiConsts.MasterAgentId || count == MpiConsts.BroadcastAgentId)
-            {
-                throw new ArgumentException("Count must be between 1 and 65,534", "count");
-            }
-            var package = _nodeServiceFactory.IsInternalServer ? new byte[0] : ZipUtils.PackageAgent();
-            var entryAssembly = Assembly.GetEntryAssembly();
-            var agentExecutableName = Path.GetFileName(entryAssembly.Location);
-            if (strategy > 0)
-                _nodeServiceProxy.SpawnStrategic(this.Session, count, agentExecutableName, package, args, strategy, factor);
-            else
-                _nodeServiceProxy.Spawn(this.Session, count, agentExecutableName, package, args);
-        }
-
-        /// <summary>
-        /// Broadcast message to all other running agents.
-        /// </summary>
-        /// <param name="messageType"></param>
-        /// <param name="content"></param>
-        public void Broadcast(int messageType, object content)
-        {
-            var msg = new Message
-            {
-                FromId = AgentId,
-                SessionId = SessionId,
-                ToId = MpiConsts.BroadcastAgentId,
-                MessageType = messageType,
-                Content = content
-            };
-            _nodeServiceProxy.Broadcast(msg);
-        }
-
-        /// <summary>
-        /// Send message to another worker agent in this execution context session.
-        /// </summary>
-        /// <param name="message"></param>
-        public void Send(Message message)
-        {
-            _nodeServiceProxy.Send(message);
-        }
-
-        /// <summary>
-        /// Send message to another agent from this agent.
-        /// </summary>
-        /// <param name="toAgentId"></param>
-        /// <param name="messageType"></param>
-        /// <param name="content"></param>
-        public void Send(ushort toAgentId, int messageType, object content)
-        {
-            var msg = new Message
-            {
-                FromId = AgentId,
-                SessionId = SessionId,
-                ToId = toAgentId,
-                MessageType = messageType,
-                Content = content
-            };
-            Send(msg);
-        }
-
-        /// <summary>
-        /// Returns first message in queue when received. Blocking call with timeout safety valve.
-        /// </summary>
-        /// <param name="timeoutSeconds">If no message received in timeoutSeconds, a message with
-        /// default values and null content is returned.</param>
-        /// <returns></returns>
-        public Message ReceiveAnyMessage(int timeoutSeconds = int.MaxValue)
-        {
-            var entered = DateTime.Now;
-            while (continueReceiving && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
-            {
-                _incomingMessageWaitHandle.WaitOne();
-                Message message = null;
-                lock (_incomingMessageBuffer)
-                {
-                    LinkedListNode<Message> firstMessage = _incomingMessageBuffer.First;
-                    if (firstMessage != null)
-                    {
-                        message = firstMessage.Value;
-                        _incomingMessageBuffer.RemoveFirst();
-                    }
-                    else
-                    {
-                        //set to nonsignaled and block on WaitOne again
-                        _incomingMessageWaitHandle.Reset();
-                    }
-                }
-                if (null != message)
-                {
-                    return message;
-                }
-            }
-            return MakeNullMessage();
-        }
-
-        /// <summary>
-        /// Returns first message in queue when received from a specified agent. Blocking call with timeout safety valve.
-        /// </summary>
-        /// <param name="fromAgentId">The agent id from whom a message is expected.</param>
-        /// <param name="timeoutSeconds">If no message received in timeoutSeconds, a message with
-        /// default values and null content is returned.
-        /// Since this is filtered, the default is on 90 seconds.</param>
-        /// <returns></returns>
-        public Message ReceiveFilteredMessage(ushort fromAgentId, int timeoutSeconds = 90)
-        {
-            var entered = DateTime.Now;
-            while (continueReceiving && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
-            {
-                _incomingMessageWaitHandle.WaitOne();
-                Message message = null;
-                lock (_incomingMessageBuffer)
-                {
-                    LinkedListNode<Message> nodeMessage = _incomingMessageBuffer.First;
-                    while (null == message && null != nodeMessage && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
-                    {
-                        if (nodeMessage.Value.FromId == fromAgentId)
-                        {
-                            message = nodeMessage.Value;
-                            _incomingMessageBuffer.Remove(nodeMessage);
-                        }
-                        else
-                            nodeMessage = nodeMessage.Next;
-                    }
-                    if (null == message) _incomingMessageWaitHandle.Reset(); //none found
-                }
-                if (null != message)
-                {
-                    return message;
-                }
-            }
-            return MakeNullMessage();
-        }
-
-        /// <summary>
-        /// Returns first message in queue when received from for a specified content type. Blocking call with timeout safety valve.
-        /// </summary>
-        /// <param name="contentType">The content type of the message expected.</param>
-        /// <param name="timeoutSeconds">If no message received in timeoutSeconds, a message with
-        /// default values and null content is returned.
-        /// Since this is filtered, the default is on 90 seconds.</param>
-        /// <returns></returns>
-        public Message ReceiveFilteredMessage(int contentType, int timeoutSeconds = 90)
-        {
-            var entered = DateTime.Now;
-            while (continueReceiving && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
-            {
-                _incomingMessageWaitHandle.WaitOne();
-                Message message = null;
-                lock (_incomingMessageBuffer)
-                {
-                    LinkedListNode<Message> nodeMessage = _incomingMessageBuffer.First;
-                    while (null == message && null != nodeMessage && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
-                    {
-                        if (nodeMessage.Value.MessageType == contentType)
-                        {
-                            message = nodeMessage.Value;
-                            _incomingMessageBuffer.Remove(nodeMessage);
-                        }
-                        else
-                            nodeMessage = nodeMessage.Next;
-                    }
-                    if (null == message) _incomingMessageWaitHandle.Reset(); //none found
-                }
-                if (null != message)
-                {
-                    return message;
-                }
-            }
-            return MakeNullMessage();
-        }
-
-        /// <summary>
-        /// Returns first message in queue when received from for an application level content type. Blocking call with timeout safety valve.
-        /// </summary>
-        /// <param name="timeoutSeconds">If no message received in timeoutSeconds, a message with
-        /// default values and null content is returned.
-        /// If no message received in timeoutSeconds, a null be returned.</param>
-        /// <returns></returns>
-        public Message ReceiveApplicationMessage(int timeoutSeconds = int.MaxValue)
-        {
-            var entered = DateTime.Now;
-            while (continueReceiving && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
-            {
-                _incomingMessageWaitHandle.WaitOne();
-                Message message = null;
-                lock (_incomingMessageBuffer)
-                {
-                    LinkedListNode<Message> nodeMessage = _incomingMessageBuffer.First;
-                    while (null == message && null != nodeMessage && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
-                    {
-                        if (nodeMessage.Value.MessageType > -1)
-                        {
-                            message = nodeMessage.Value;
-                            _incomingMessageBuffer.Remove(nodeMessage);
-                        }
-                        else
-                            nodeMessage = nodeMessage.Next;
-                    }
-                    if (null == message) _incomingMessageWaitHandle.Reset(); //none found
-                }
-                if (null != message)
-                {
-                    return message;
-                }
-            }
-            return MakeNullMessage();
-        }
-
-        /// <summary>
-        /// Create the message that is returned when Receive methods timeout.
-        /// </summary>
-        /// <returns></returns>
-        private Message MakeNullMessage()
-        {
-            //make a message that is from and to this agent with unused message type value
-            var msg = new Message(SessionId, AgentId, AgentId, -987654, null);
-            return msg;
-        }
 
         /// <summary>
         /// Get the list of agent ids that are currently running.
@@ -446,7 +160,7 @@ namespace DuoVia.MpiVisor
         /// <returns></returns>
         public ushort[] GetRunningAgents()
         {
-            return _nodeServiceProxy.GetRunningAgents(this.SessionId);
+            return _nodeServiceProxy.GetRunningAgents(this.Session.SessionId);
         }
 
         /// <summary>
@@ -455,31 +169,7 @@ namespace DuoVia.MpiVisor
         public void KillSession()
         {
             if (AgentId > 0) return;
-            _nodeServiceProxy.KillSession(SessionId);
-        }
-
-        /// <summary>
-        /// Adds message to incoming queue to be "received". 
-        /// Called by agent service to deliver messages.
-        /// </summary>
-        /// <param name="message"></param>
-        internal void EnqueuMessage(Message message)
-        {
-            lock (_incomingMessageBuffer)
-            {
-                if (continueReceiving)
-                {
-                    if (message.MessageType == -999999)
-                    {
-                        if (message.Content != null) Log.LogMessage(message.Content.ToString());
-                    }
-                    else
-                    {
-                        _incomingMessageBuffer.AddLast(message);
-                        _incomingMessageWaitHandle.Set();
-                    }
-                }
-            }
+            _nodeServiceProxy.KillSession(Session.SessionId);
         }
 
         /// <summary>
@@ -492,9 +182,9 @@ namespace DuoVia.MpiVisor
             isDisposed = true;
 
             //tell message receiving thread to ignore any incoming messages
-            continueReceiving = false;
+            _messageQueue.AllowMessageEnqueing = false;
 
-            //wait for child agents to end
+            //wait for child agents to end - needed when agents are spawned as app domain from remote primary process agent
             var disposeStarted = DateTime.Now;
             while ((DateTime.Now - disposeStarted).TotalMinutes < maxMinutesWaitForChildAgentCompletion 
                 && _agentService.GetChildAgentCount() > 0)
@@ -505,14 +195,14 @@ namespace DuoVia.MpiVisor
             //sent stopped message to master if this agent is not the master
             if (AgentId != MpiConsts.MasterAgentId)
             {
-                Send(new Message(SessionId, AgentId, MpiConsts.MasterAgentId, SystemMessageTypes.Stopped, null));
+                _messageQueue.Send(new Message(Session.SessionId, AgentId, MpiConsts.MasterAgentId, SystemMessageTypes.Stopped, null));
             }
 
             //notify node server this agent is gone
-            _nodeServiceProxy.UnRegisterAgent(SessionId, AgentId); 
+            _nodeServiceProxy.UnRegisterAgent(Session.SessionId, AgentId); 
 
             //dispose and close other resources
-            _incomingMessageWaitHandle.Dispose();
+            _messageQueue.Dispose();
             _nodeServiceFactory.Dispose();
             if (null != _agentServiceHost) _agentServiceHost.Close();
             Log.Close();

@@ -11,7 +11,7 @@ namespace DuoViaTestAgent
         static void Main(string[] args)
         {
             //connect agent and dispose at end of execution
-            //use forceLocal to run in a single process with internal visor
+            //use runInSingleLocalProcess to run in a single process with internal visor
             //use Visor.ConnectDistributed to run distributed across nodes
             using (Visor.ConnectLocal(args))  
             {
@@ -39,7 +39,7 @@ namespace DuoViaTestAgent
                     catch (Exception e)
                     {
                         Log.Error("spawn agent exception: {0}", e);
-                        Agent.Current.Send(
+                        Agent.Current.MessageQueue.Send(
                             toAgentId: MpiConsts.MasterAgentId,
                             messageType: SystemMessageTypes.Aborted,
                             content: e);

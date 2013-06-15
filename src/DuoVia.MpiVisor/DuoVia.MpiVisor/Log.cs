@@ -123,10 +123,10 @@ namespace DuoVia.MpiVisor
                     // if is an agent and not master, shuttle log message back to master
                     if (null != Agent.Current && Agent.Current.AgentId != MpiConsts.MasterAgentId)
                     {
-                        Agent.Current.Send(new Message
+                        Agent.Current.MessageQueue.Send(new Message
                             {
                                 FromId = Agent.Current.AgentId,
-                                SessionId = Agent.Current.SessionId,
+                                SessionId = Agent.Current.Session.SessionId,
                                 ToId = MpiConsts.MasterAgentId,
                                 MessageType = -999999, //reserved for internal log shuttle
                                 Content = message

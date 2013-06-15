@@ -42,6 +42,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Agent.cs" />
+    <Compile Include="MessageQueue.cs" />
+    <Compile Include="WorkerFactory.cs" />
     <Compile Include="GeneralExtensions.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="Message.cs" />
@@ -55,7 +57,9 @@
     <Compile Include="Services\NodeServiceFactory.cs" />
     <Compile Include="Services\NodeServiceProxy.cs" />
     <Compile Include="MpiConsts.cs" />
+    <Compile Include="SessionFactory.cs" />
     <Compile Include="SessionInfo.cs" />
+    <Compile Include="SpawnStrategy.cs" />
     <Compile Include="SystemMessageTypes.cs" />
     <Compile Include="Visor.cs" />
     <Compile Include="ZipUtils.cs" />

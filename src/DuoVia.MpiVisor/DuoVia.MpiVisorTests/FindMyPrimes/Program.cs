@@ -78,22 +78,22 @@ namespace FindMyPrimes
                     var chunkedRequests = Chunkify(from, to, 5000);
                     var nextChunk = 0;
 
-                    Agent.Current.SpawnAgents(agentsToSpawn, args);
+                    Agent.Current.WorkerFactory.SpawnWorkerAgents(agentsToSpawn, args);
                     Message msg;
                     do
                     {
-                        msg = Agent.Current.ReceiveAnyMessage();
+                        msg = Agent.Current.MessageQueue.ReceiveAnyMessage();
                         switch(msg.MessageType)
                         {
                             case SystemMessageTypes.Started:
                                 if (nextChunk < chunkedRequests.Count)
                                 {
-                                    Agent.Current.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
+                                    Agent.Current.MessageQueue.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
                                     nextChunk++;
                                 }
                                 else
                                 {
-                                    Agent.Current.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
+                                    Agent.Current.MessageQueue.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
                                 }
                                 break;
                             case 2: //agent finished with chunk
@@ -103,12 +103,12 @@ namespace FindMyPrimes
                                 //    result.Primes.Count, result.From, result.To, result.TotalSeconds);
                                 if (nextChunk < chunkedRequests.Count)
                                 {
-                                    Agent.Current.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
+                                    Agent.Current.MessageQueue.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
                                     nextChunk++;
                                 }
                                 else
                                 {
-                                    Agent.Current.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
+                                    Agent.Current.MessageQueue.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
                                 }
                                 break;
                             case SystemMessageTypes.Aborted:
@@ -137,13 +137,13 @@ namespace FindMyPrimes
                     Message msg;
                     do
                     {
-                        msg = Agent.Current.ReceiveAnyMessage();
+                        msg = Agent.Current.MessageQueue.ReceiveAnyMessage();
                         switch (msg.MessageType)
                         {
                             case 1:
                                 var request = (PrimesRequest)msg.Content;
                                 var response = CalculatePrimes(request);
-                                Agent.Current.Send(MpiConsts.MasterAgentId, 2, response);
+                                Agent.Current.MessageQueue.Send(MpiConsts.MasterAgentId, 2, response);
                                 break;
                             case SystemMessageTypes.Shutdown:
                                 continueProcessing = false;

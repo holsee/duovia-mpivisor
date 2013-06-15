@@ -19,11 +19,11 @@ namespace DuoViaTestAgent
         public static void Run(string[] args)
         {
             //spawn worker agents, send messages and orchestrate work
-            Agent.Current.SpawnAgents(numberOfAgentsToSpawn, args);
+            Agent.Current.WorkerFactory.SpawnWorkerAgents(numberOfAgentsToSpawn, args);
             Message msg;
             do
             {
-                msg = Agent.Current.ReceiveAnyMessage();
+                msg = Agent.Current.MessageQueue.ReceiveAnyMessage();
                 switch (msg.MessageType)
                 {
                     //handle content types > -1 which are application specific
@@ -35,7 +35,7 @@ namespace DuoViaTestAgent
                         Log.Info("AgentId {0} sent message type 2 with {1}", msg.FromId, msg.Content);
 
                         //this test/demo just sends the message back to the sender
-                        Agent.Current.Send(
+                        Agent.Current.MessageQueue.Send(
                             toAgentId: msg.FromId,
                             messageType: SystemMessageTypes.Shutdown,
                             content: null);
@@ -45,7 +45,7 @@ namespace DuoViaTestAgent
                     case SystemMessageTypes.Started:
                         Log.Info("AgentId {0} reports being started.", msg.FromId);
                         //send demo/test content message
-                        Agent.Current.Send(
+                        Agent.Current.MessageQueue.Send(
                             toAgentId: msg.FromId,
                             messageType: 1,
                             content: "hello from 1");

@@ -42,7 +42,7 @@ namespace DuoVia.MpiVisor.Services
 
         public void Send(Message message)
         {
-            Agent.Current.EnqueuMessage(message);
+            ((IMessageQueueWriter)Agent.Current.MessageQueue).EnqueuMessage(message);
         }
 
         public string[] ReadLog()
@@ -57,7 +57,7 @@ namespace DuoVia.MpiVisor.Services
                 try
                 {
                     if (null == Agent.Current) throw new Exception("No agent context");
-                    var sessionId = Agent.Current.SessionId;
+                    var sessionId = Agent.Current.Session.SessionId;
                     var basePath = AppDomain.CurrentDomain.BaseDirectory;
                     var assemblyLocation = Path.Combine(basePath, agentExecutableName);
                     var configFile = assemblyLocation + ".config";
@@ -81,7 +81,7 @@ namespace DuoVia.MpiVisor.Services
                             catch (Exception tx)
                             {
                                 Log.Error("Agent {0} unhandled exception: {1}", agentId, tx);
-                                Agent.Current.Send(new Message
+                                Agent.Current.MessageQueue.Send(new Message
                                 {
                                     ToId = MpiConsts.MasterAgentId,
                                     SessionId = sessionId,
