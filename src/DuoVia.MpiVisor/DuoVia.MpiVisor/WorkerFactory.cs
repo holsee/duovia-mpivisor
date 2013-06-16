@@ -102,7 +102,7 @@ namespace DuoVia.MpiVisor
             {
                 throw new ArgumentException("Count must be between 1 and 65,534", "count");
             }
-            var package = _isInternalNodeServer ? new byte[0] : ZipUtils.PackageAgent();
+            var package = _isInternalNodeServer ? new byte[0] : AgentPackager.PackageAgent();
             var entryAssembly = Assembly.GetEntryAssembly();
             var agentExecutableName = Path.GetFileName(entryAssembly.Location);
             if (strategy > 0)

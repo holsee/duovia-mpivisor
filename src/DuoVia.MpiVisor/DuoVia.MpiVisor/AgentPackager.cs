@@ -8,7 +8,7 @@ using System.Text;
 
 namespace DuoVia.MpiVisor
 {
-    public static class ZipUtils
+    public static class AgentPackager
     {
         /// <summary>
         /// Reads DLLs, EXEs and CONFIG files and compresses them into a byte array.

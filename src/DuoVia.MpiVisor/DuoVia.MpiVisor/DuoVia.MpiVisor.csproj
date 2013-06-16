@@ -42,6 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Agent.cs" />
+    <Compile Include="Logger.cs" />
     <Compile Include="MessageQueue.cs" />
     <Compile Include="WorkerFactory.cs" />
     <Compile Include="GeneralExtensions.cs" />
@@ -62,7 +63,7 @@
     <Compile Include="SpawnStrategy.cs" />
     <Compile Include="SystemMessageTypes.cs" />
     <Compile Include="Visor.cs" />
-    <Compile Include="ZipUtils.cs" />
+    <Compile Include="AgentPackager.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="_license.txt" />

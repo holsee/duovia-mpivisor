@@ -386,7 +386,7 @@ namespace DuoVia.MpiVisor.Server
             {
                 //var packageFileName = Path.Combine(_packagesDir, string.Format("p-{0}.zip", request.SessionId));
                 Directory.CreateDirectory(unpackPath);
-                ZipUtils.UnpackPackage(unpackPath, request.Package);
+                AgentPackager.UnpackPackage(unpackPath, request.Package);
             }
             //this is our first deploy to this cluster node, so start process
             var basePath = Path.Combine(_appsRootDir, string.Format("app-{0}", request.Session.SessionId));

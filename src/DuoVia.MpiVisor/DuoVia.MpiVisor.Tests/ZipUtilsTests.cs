@@ -11,7 +11,7 @@ namespace DuoVia.MpiVisor.Tests
         [TestMethod]
         public void PackageAgent_Test()
         {
-            var packageBytes = ZipUtils.PackageAgent();
+            var packageBytes = AgentPackager.PackageAgent();
             Assert.IsNotNull(packageBytes);
             Assert.IsTrue(packageBytes.Length > 100);
         }
@@ -19,7 +19,7 @@ namespace DuoVia.MpiVisor.Tests
         [TestMethod]
         public void UnpackPackage_Test()
         {
-            var packageBytes = ZipUtils.PackageAgent();
+            var packageBytes = AgentPackager.PackageAgent();
             Assert.IsNotNull(packageBytes);
             Assert.IsTrue(packageBytes.Length > 100);
 
@@ -27,7 +27,7 @@ namespace DuoVia.MpiVisor.Tests
             try
             {
                 Directory.CreateDirectory(tempDirectory);
-                ZipUtils.UnpackPackage(tempDirectory, packageBytes);
+                AgentPackager.UnpackPackage(tempDirectory, packageBytes);
 
                 var files = Directory.GetFiles(tempDirectory);
                 Assert.IsNotNull(files);
