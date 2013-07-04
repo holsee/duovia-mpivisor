@@ -15,13 +15,15 @@ namespace DuoVia.MpiVisor
     public interface IMessageQueue : IDisposable
     {
         void Broadcast(int messageType, object content);
-        Message ReceiveAnyMessage(int timeoutSeconds = int.MaxValue);
-        Message ReceiveApplicationMessage(int timeoutSeconds = int.MaxValue);
+        Message ReceiveAnyMessage(int timeoutSeconds = 3600); //max one hour before null message returned
+        Message ReceiveApplicationMessage(int timeoutSeconds = 3600);
         Message ReceiveFilteredMessage(int contentType, int timeoutSeconds = 90);
         Message ReceiveFilteredMessage(ushort fromAgentId, int timeoutSeconds = 90);
         void Send(Message message);
         void Send(ushort toAgentId, int messageType, object content);
         bool AllowMessageEnqueing { get; set; }
+        Func<int, bool> AbortMessageWaitVisitor { get; set; }
+        int WaitForMessageAbortTimeMs { get; set; }
     }
 
     public class MessageQueue : IMessageQueue, IMessageQueueWriter
@@ -29,6 +31,9 @@ namespace DuoVia.MpiVisor
         private INodeService _nodeServiceProxy = null;
         private ushort _agentId = 0;
         private SessionInfo _session = null;
+
+        private int _waitForMessageAbortTimeMs = 1000;
+        private Func<int, bool> _abortMessageWaitVisitor = null;
 
         //incoming message queue and reset event to signal blocking receive message methods
         //the EnqueuMessage method is called by the thread running the agent service which
@@ -44,7 +49,41 @@ namespace DuoVia.MpiVisor
             AllowMessageEnqueing = true;
         }
 
+        /// <summary>
+        /// Set to false to prevent further message reception.
+        /// </summary>
         public bool AllowMessageEnqueing { get; set; }
+
+        /// <summary>
+        /// Set function to evaluate whether a message wait should be abandoned and a null message returned.
+        /// </summary>
+        public Func<int, bool> AbortMessageWaitVisitor
+        {
+            get { return _abortMessageWaitVisitor; }
+            set { _abortMessageWaitVisitor = value; }
+        }
+
+        /// <summary>
+        /// Set time in milliseconds that the message recive method will wait before executing the AbortMessageWaitVisitor function
+        /// to determine whether a null message should be returned to allow the message loop to deal with
+        /// the possibility of an agent being abandoned. Min 100 and max 3,600,000.
+        /// </summary>
+        public int WaitForMessageAbortTimeMs
+        {
+            get
+            {
+                return _waitForMessageAbortTimeMs;
+            }
+            set
+            {
+                if (value < 100)
+                    _waitForMessageAbortTimeMs = 100;
+                else if (value > 3600000)
+                    _waitForMessageAbortTimeMs = 3600000;
+                else
+                    _waitForMessageAbortTimeMs = value;
+            }
+        }
 
         /// <summary>
         /// Broadcast message to all other running agents.
@@ -92,37 +131,59 @@ namespace DuoVia.MpiVisor
             Send(msg);
         }
 
+        private bool ShouldAbandonMessageWait(int count)
+        {
+            bool abandon = false;
+            if (_abortMessageWaitVisitor != null)
+            {
+                try
+                {
+                    abandon = _abortMessageWaitVisitor(count);
+                }
+                catch
+                {
+                    abandon = false;
+                }
+            }
+            return abandon;
+        }
+
         /// <summary>
         /// Returns first message in queue when received. Blocking call with timeout safety valve.
         /// </summary>
         /// <param name="timeoutSeconds">If no message received in timeoutSeconds, a message with
         /// default values and null content is returned.</param>
         /// <returns></returns>
-        public Message ReceiveAnyMessage(int timeoutSeconds = int.MaxValue)
+        public Message ReceiveAnyMessage(int timeoutSeconds = 3600)
         {
             var entered = DateTime.Now;
+            var count = 0;
             while (AllowMessageEnqueing && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
             {
-                _incomingMessageWaitHandle.WaitOne();
-                Message message = null;
-                lock (_incomingMessageBuffer)
+                count++;
+                if (_incomingMessageWaitHandle.WaitOne(_waitForMessageAbortTimeMs)) //eval while once per second when not signaled
                 {
-                    LinkedListNode<Message> firstMessage = _incomingMessageBuffer.First;
-                    if (firstMessage != null)
+                    Message message = null;
+                    lock (_incomingMessageBuffer)
                     {
-                        message = firstMessage.Value;
-                        _incomingMessageBuffer.RemoveFirst();
+                        LinkedListNode<Message> firstMessage = _incomingMessageBuffer.First;
+                        if (firstMessage != null)
+                        {
+                            message = firstMessage.Value;
+                            _incomingMessageBuffer.RemoveFirst();
+                        }
+                        else
+                        {
+                            //set to nonsignaled and block on WaitOne again
+                            _incomingMessageWaitHandle.Reset();
+                        }
                     }
-                    else
+                    if (null != message)
                     {
-                        //set to nonsignaled and block on WaitOne again
-                        _incomingMessageWaitHandle.Reset();
+                        return message;
                     }
                 }
-                if (null != message)
-                {
-                    return message;
-                }
+                else if (ShouldAbandonMessageWait(count)) break; //force null message result
             }
             return MakeNullMessage();
         }
@@ -138,29 +199,34 @@ namespace DuoVia.MpiVisor
         public Message ReceiveFilteredMessage(ushort fromAgentId, int timeoutSeconds = 90)
         {
             var entered = DateTime.Now;
+            var count = 0;
             while (AllowMessageEnqueing && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
             {
-                _incomingMessageWaitHandle.WaitOne();
-                Message message = null;
-                lock (_incomingMessageBuffer)
+                count++;
+                if (_incomingMessageWaitHandle.WaitOne(_waitForMessageAbortTimeMs)) //eval while once per second when not signaled
                 {
-                    LinkedListNode<Message> nodeMessage = _incomingMessageBuffer.First;
-                    while (null == message && null != nodeMessage && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
+                    Message message = null;
+                    lock (_incomingMessageBuffer)
                     {
-                        if (nodeMessage.Value.FromId == fromAgentId)
+                        LinkedListNode<Message> nodeMessage = _incomingMessageBuffer.First;
+                        while (null == message && null != nodeMessage && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
                         {
-                            message = nodeMessage.Value;
-                            _incomingMessageBuffer.Remove(nodeMessage);
+                            if (nodeMessage.Value.FromId == fromAgentId)
+                            {
+                                message = nodeMessage.Value;
+                                _incomingMessageBuffer.Remove(nodeMessage);
+                            }
+                            else
+                                nodeMessage = nodeMessage.Next;
                         }
-                        else
-                            nodeMessage = nodeMessage.Next;
+                        if (null == message) _incomingMessageWaitHandle.Reset(); //none found
                     }
-                    if (null == message) _incomingMessageWaitHandle.Reset(); //none found
+                    if (null != message)
+                    {
+                        return message;
+                    }
                 }
-                if (null != message)
-                {
-                    return message;
-                }
+                else if (ShouldAbandonMessageWait(count)) break; //force null message result
             }
             return MakeNullMessage();
         }
@@ -176,29 +242,34 @@ namespace DuoVia.MpiVisor
         public Message ReceiveFilteredMessage(int contentType, int timeoutSeconds = 90)
         {
             var entered = DateTime.Now;
+            var count = 0;
             while (AllowMessageEnqueing && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
             {
-                _incomingMessageWaitHandle.WaitOne();
-                Message message = null;
-                lock (_incomingMessageBuffer)
+                count++;
+                if (_incomingMessageWaitHandle.WaitOne(_waitForMessageAbortTimeMs)) //eval while once per second when not signaled
                 {
-                    LinkedListNode<Message> nodeMessage = _incomingMessageBuffer.First;
-                    while (null == message && null != nodeMessage && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
+                    Message message = null;
+                    lock (_incomingMessageBuffer)
                     {
-                        if (nodeMessage.Value.MessageType == contentType)
+                        LinkedListNode<Message> nodeMessage = _incomingMessageBuffer.First;
+                        while (null == message && null != nodeMessage && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
                         {
-                            message = nodeMessage.Value;
-                            _incomingMessageBuffer.Remove(nodeMessage);
+                            if (nodeMessage.Value.MessageType == contentType)
+                            {
+                                message = nodeMessage.Value;
+                                _incomingMessageBuffer.Remove(nodeMessage);
+                            }
+                            else
+                                nodeMessage = nodeMessage.Next;
                         }
-                        else
-                            nodeMessage = nodeMessage.Next;
+                        if (null == message) _incomingMessageWaitHandle.Reset(); //none found
                     }
-                    if (null == message) _incomingMessageWaitHandle.Reset(); //none found
+                    if (null != message)
+                    {
+                        return message;
+                    }
                 }
-                if (null != message)
-                {
-                    return message;
-                }
+                else if (ShouldAbandonMessageWait(count)) break; //force null message result
             }
             return MakeNullMessage();
         }
@@ -210,32 +281,37 @@ namespace DuoVia.MpiVisor
         /// default values and null content is returned.
         /// If no message received in timeoutSeconds, a null be returned.</param>
         /// <returns></returns>
-        public Message ReceiveApplicationMessage(int timeoutSeconds = int.MaxValue)
+        public Message ReceiveApplicationMessage(int timeoutSeconds = 3600)
         {
             var entered = DateTime.Now;
+            var count = 0;
             while (AllowMessageEnqueing && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
             {
-                _incomingMessageWaitHandle.WaitOne();
-                Message message = null;
-                lock (_incomingMessageBuffer)
+                count++;
+                if (_incomingMessageWaitHandle.WaitOne(_waitForMessageAbortTimeMs)) //eval while once per second when not signaled
                 {
-                    LinkedListNode<Message> nodeMessage = _incomingMessageBuffer.First;
-                    while (null == message && null != nodeMessage && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
+                    Message message = null;
+                    lock (_incomingMessageBuffer)
                     {
-                        if (nodeMessage.Value.MessageType > -1)
+                        LinkedListNode<Message> nodeMessage = _incomingMessageBuffer.First;
+                        while (null == message && null != nodeMessage && (entered - DateTime.Now).TotalSeconds < timeoutSeconds)
                         {
-                            message = nodeMessage.Value;
-                            _incomingMessageBuffer.Remove(nodeMessage);
+                            if (nodeMessage.Value.MessageType > -1)
+                            {
+                                message = nodeMessage.Value;
+                                _incomingMessageBuffer.Remove(nodeMessage);
+                            }
+                            else
+                                nodeMessage = nodeMessage.Next;
                         }
-                        else
-                            nodeMessage = nodeMessage.Next;
+                        if (null == message) _incomingMessageWaitHandle.Reset(); //none found
                     }
-                    if (null == message) _incomingMessageWaitHandle.Reset(); //none found
+                    if (null != message)
+                    {
+                        return message;
+                    }
                 }
-                if (null != message)
-                {
-                    return message;
-                }
+                else if (ShouldAbandonMessageWait(count)) break; //force null message result
             }
             return MakeNullMessage();
         }
@@ -251,7 +327,7 @@ namespace DuoVia.MpiVisor
             {
                 if (AllowMessageEnqueing)
                 {
-                    if (message.MessageType == -999999)
+                    if (message.MessageType == -999999) //do not deliver log shuttle message
                     {
                         if (message.Content != null) Log.LogMessage(message.Content.ToString());
                     }
@@ -271,7 +347,7 @@ namespace DuoVia.MpiVisor
         private Message MakeNullMessage()
         {
             //make a message that is from and to this agent with unused message type value
-            var msg = new Message(_session.SessionId, _agentId, _agentId, -987654, null);
+            var msg = new Message(_session.SessionId, _agentId, _agentId, SystemMessageTypes.NullMessage, null);
             return msg;
         }
 
