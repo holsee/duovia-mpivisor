@@ -66,6 +66,14 @@ namespace DuoViaTestAgent
                         //the msg.Content contains the orginal Message object sent
                         Log.Info("Visor reports message delivery failure.", msg.FromId);
                         break;
+                    case SystemMessageTypes.NullMessage:
+                        //this means the agent has waited more than the allotted time for a message
+                        //or the AbortMessageWaitVisitor function was set and returned true 
+                        //and a null message was returned by the ReceiveAnyMessage method
+                        //so the developer must decide whether to shut down or continue waiting
+                        Log.Info("Visor reports message wait timed out and a null message was returned.");
+                        continueProcessing = false;
+                        break;
                     default:
                         Log.Info("AgentId {0} sent {1} with {2}", msg.FromId, msg.MessageType, msg.Content);
                         break;
