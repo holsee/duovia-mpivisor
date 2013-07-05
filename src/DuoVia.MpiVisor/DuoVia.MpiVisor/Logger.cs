@@ -42,15 +42,12 @@ namespace DuoVia.MpiVisor
         private StreamWriter _writer;
         private DateTime _startedAt = DateTime.Now;
         private string _logFileName;
+        private bool isVisor = false;
 
-        public Logger()
+        private void LazyInitialize()
         {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            var fileName = (null == Agent.Current) ? "visor" : Agent.Current.Name;
+            isVisor = (null == Agent.Current);
+            var fileName = isVisor ? "visor" : Agent.Current.Name;
             var logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
             Directory.CreateDirectory(logDir);
             _logFileName = (null == Agent.Current)
@@ -62,8 +59,15 @@ namespace DuoVia.MpiVisor
 
         private void AssureFileOpen()
         {
+            ////if Log accessed prior to Agent creation by Visor switch to logging to agent log
+            //if (isVisor && null != Agent.Current) 
+            //{
+            //    AssureFileClosed();
+            //    Initialize();
+            //}
             if (null == _writer)
             {
+                LazyInitialize();
                 _fs = File.Open(_logFileName, FileMode.Append, FileAccess.Write, FileShare.Read);
                 _writer = new StreamWriter(_fs);
                 _writer.AutoFlush = true;
@@ -107,11 +111,7 @@ namespace DuoVia.MpiVisor
             set
             {
                 _logType = value;
-                if (_logType == MpiVisor.LogType.File || _logType == MpiVisor.LogType.Both)
-                {
-                    AssureFileOpen();
-                }
-                else
+                if (_logType != MpiVisor.LogType.File && _logType != MpiVisor.LogType.Both)
                 {
                     AssureFileClosed();
                 }

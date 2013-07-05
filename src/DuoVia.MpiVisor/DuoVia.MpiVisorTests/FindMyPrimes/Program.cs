@@ -64,11 +64,11 @@ namespace FindMyPrimes
             var continueProcessing = true;
             ushort agentsToSpawn = 12;
             ushort agentsShutdown = 0;
+            Log.LogType = LogType.Both;
+
             //use Visor.ConnectDistributed to run distributed across nodes
             using (Visor.ConnectLocal(args))
             {
-                Log.LogType = LogType.Both;
-
                 //demo how to inject visitor function to determine whether the receive message 
                 //method on MessageQueue should continue to block when no message is received after
                 //AbortTimeMs (default of one second) of waiting
