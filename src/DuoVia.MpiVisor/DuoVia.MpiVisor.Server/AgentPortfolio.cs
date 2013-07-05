@@ -8,13 +8,13 @@ namespace DuoVia.MpiVisor.Server
 {
     internal sealed class AgentPortfolio
     {
-        public AgentPortfolio(Guid sessionId)
+        public AgentPortfolio(SessionInfo sessionInfo)
         {
-            this.SessionId = sessionId;
+            this.Session = sessionInfo;
             this.LocalAgentIds = new List<ushort>();
             this.Agents = new Dictionary<ushort, AgentEndPoint>();
         }
-        public Guid SessionId { get; set; }
+        public SessionInfo Session { get; set; }
         public Process LocalProcess { get; set; }
         public string LocalProcessAgentName { get; set; }
         public List<ushort> LocalAgentIds { get; set; }

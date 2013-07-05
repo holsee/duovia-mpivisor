@@ -56,6 +56,7 @@
     <Compile Include="ClusterServerInfo.cs" />
     <Compile Include="ClusterServiceProxy.cs" />
     <Compile Include="IClusterService.cs" />
+    <Compile Include="ManagementService.cs" />
     <Compile Include="MpiVisorService.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -74,12 +75,16 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ServiceRunner.cs" />
     <Compile Include="SpawnRequest.cs" />
-    <Compile Include="Visor.cs" />
+    <Compile Include="ServerVisor.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\DuoVia.Net\DuoVia.Net\DuoVia.Net.csproj">
       <Project>{4f36b450-a225-4d13-9786-8b84ac25a304}</Project>
       <Name>DuoVia.Net</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\DuoVia.MpiVisor.Management\DuoVia.MpiVisor.Management.csproj">
+      <Project>{a4ca210e-6aca-4ded-bf6d-af5161d8c682}</Project>
+      <Name>DuoVia.MpiVisor.Management</Name>
     </ProjectReference>
     <ProjectReference Include="..\DuoVia.MpiVisor\DuoVia.MpiVisor.csproj">
       <Project>{3aef1f93-3cbc-42c8-bcc5-6d9a56fcaf5d}</Project>

@@ -64,8 +64,24 @@ namespace FindMyPrimes
             var continueProcessing = true;
             ushort agentsToSpawn = 12;
             ushort agentsShutdown = 0;
-            using (Agent.Connect(forceLocal: true))
+            Log.LogType = LogType.Both;
+
+            //use Visor.ConnectDistributed to run distributed across nodes
+            using (Visor.ConnectLocal(args))
             {
+                //demo how to inject visitor function to determine whether the receive message 
+                //method on MessageQueue should continue to block when no message is received after
+                //AbortTimeMs (default of one second) of waiting
+                Agent.Current.MessageQueue.WaitForMessageAbortTimeMs = 1100;
+                Agent.Current.MessageQueue.AbortMessageWaitVisitor = (count) =>
+                {
+                    //demo wait for a message a little more than 2200 ms
+                    if (count > 1)   
+                        return true;
+                    else
+                        return false;
+                };
+
                 if (Agent.Current.IsMaster)
                 {
                     Log.LogType = LogType.Both; //assure log to console and file
@@ -77,22 +93,22 @@ namespace FindMyPrimes
                     var chunkedRequests = Chunkify(from, to, 5000);
                     var nextChunk = 0;
 
-                    Agent.Current.SpawnAgents(agentsToSpawn, args);
+                    Agent.Current.WorkerFactory.SpawnWorkerAgents(agentsToSpawn, args);
                     Message msg;
                     do
                     {
-                        msg = Agent.Current.ReceiveAnyMessage();
+                        msg = Agent.Current.MessageQueue.ReceiveAnyMessage();
                         switch(msg.MessageType)
                         {
                             case SystemMessageTypes.Started:
                                 if (nextChunk < chunkedRequests.Count)
                                 {
-                                    Agent.Current.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
+                                    Agent.Current.MessageQueue.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
                                     nextChunk++;
                                 }
                                 else
                                 {
-                                    Agent.Current.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
+                                    Agent.Current.MessageQueue.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
                                 }
                                 break;
                             case 2: //agent finished with chunk
@@ -102,18 +118,29 @@ namespace FindMyPrimes
                                 //    result.Primes.Count, result.From, result.To, result.TotalSeconds);
                                 if (nextChunk < chunkedRequests.Count)
                                 {
-                                    Agent.Current.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
+                                    Agent.Current.MessageQueue.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
                                     nextChunk++;
                                 }
                                 else
                                 {
-                                    Agent.Current.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
+                                    Agent.Current.MessageQueue.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
                                 }
                                 break;
                             case SystemMessageTypes.Aborted:
                             case SystemMessageTypes.Stopped:
                                 agentsShutdown++;
                                 if (agentsShutdown >= agentsToSpawn) continueProcessing = false;
+                                break;
+                            case SystemMessageTypes.DeliveryFailure:
+                                //message sent to spawned agent was not able to be delivered
+                                //the msg.Content contains the orginal Message object sent
+                                Log.Info("Visor reports message delivery failure.", msg.FromId);
+                                break;
+                            case SystemMessageTypes.NullMessage:
+                                Log.Info("Visor reports null message indicating timeout in master.", msg.FromId);
+                                break;
+                            default:
+                                Log.Info("AgentId {0} sent {1} with {2}", msg.FromId, msg.MessageType, msg.Content);
                                 break;
                         }
                     }
@@ -123,21 +150,33 @@ namespace FindMyPrimes
                         allPrimes.Count, from, to, allSw.Elapsed.TotalSeconds);
                     Console.ReadLine();
                 }
-                else
+                else  //is not master, so do work
                 {
                     Message msg;
                     do
                     {
-                        msg = Agent.Current.ReceiveAnyMessage();
+                        msg = Agent.Current.MessageQueue.ReceiveAnyMessage();
                         switch (msg.MessageType)
                         {
                             case 1:
                                 var request = (PrimesRequest)msg.Content;
                                 var response = CalculatePrimes(request);
-                                Agent.Current.Send(MpiConsts.MasterAgentId, 2, response);
+                                Agent.Current.MessageQueue.Send(MpiConsts.MasterAgentId, 2, response);
                                 break;
                             case SystemMessageTypes.Shutdown:
                                 continueProcessing = false;
+                                break;
+                            case SystemMessageTypes.DeliveryFailure:
+                                //this means master is no longer responding, so shut this agent down
+                                //the msg.Content contains the orginal Message object sent
+                                Log.Info("Visor reports message delivery failure.", msg.FromId);
+                                continueProcessing = false;
+                                break;
+                            case SystemMessageTypes.NullMessage:
+                                Log.Info("Visor reports null message indicating timeout in slave.", msg.FromId);
+                                break;
+                            default:
+                                Log.Info("AgentId {0} sent {1} with {2}", msg.FromId, msg.MessageType, msg.Content);
                                 break;
                         }
                     }

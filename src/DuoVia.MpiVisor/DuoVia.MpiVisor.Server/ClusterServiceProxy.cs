@@ -1,9 +1,9 @@
-﻿using DuoVia.Net.TcpIp;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using DuoVia.Net.TcpIp;
 
 namespace DuoVia.MpiVisor.Server
 {
@@ -19,9 +19,9 @@ namespace DuoVia.MpiVisor.Server
             Proxy.DirectedSpawnRequest(request);
         }
 
-        public void RegisterAgent(Guid sessionId, ushort agentId, string ipAddress, int port)
+        public void RegisterAgent(SessionInfo sessionInfo, ushort agentId, string ipAddress, int port)
         {
-            Proxy.RegisterAgent(sessionId, agentId, ipAddress, port);
+            Proxy.RegisterAgent(sessionInfo, agentId, ipAddress, port);
         }
 
         public void UnRegisterAgent(Guid sessionId, ushort agentId)

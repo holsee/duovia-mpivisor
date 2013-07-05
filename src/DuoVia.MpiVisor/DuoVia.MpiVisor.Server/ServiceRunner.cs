@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.ServiceModel;
 using System.ServiceModel.Description;
@@ -9,6 +10,7 @@ using System.Configuration;
 using DuoVia.MpiVisor.Services;
 using DuoVia.Net.NamedPipes;
 using DuoVia.Net.TcpIp;
+using DuoVia.MpiVisor.Management;
 
 namespace DuoVia.MpiVisor.Server
 {
@@ -19,6 +21,8 @@ namespace DuoVia.MpiVisor.Server
         private NpHost _nodeServiceHost;
         private IClusterService _clusterService;
         private TcpHost _clusterServiceHost;
+        private IManagementService _managementService;
+        private TcpHost _managementServiceHost;
 
         public void Start(string[] args)
         {
@@ -31,10 +35,22 @@ namespace DuoVia.MpiVisor.Server
                 _nodeServiceHost.Open();
 
                 _clusterService = new ClusterService();
-                _clusterServiceHost = new TcpHost(_clusterService, Visor.Current.EndPoint);
+                _clusterServiceHost = new TcpHost(_clusterService, ServerVisor.Current.EndPoint);
                 _clusterServiceHost.Open();
 
-                Visor.Current.RegisterInstance(); //register self and with master or backup
+                //create management service if configured
+                var config = System.Configuration.ConfigurationManager.AppSettings["ManagementClusterNodeAddress"];
+                if (!string.IsNullOrWhiteSpace(config))
+                {
+                    var parts = config.Split(',');
+                    var endPoint = new IPEndPoint(IPAddress.Parse(parts[0]), int.Parse(parts[1]));
+                    _managementService = new ManagementService();
+                    _managementServiceHost = new TcpHost(_managementService, endPoint);
+                    _managementServiceHost.Open();
+                }
+
+                //register self and with master or backup
+                ServerVisor.Current.RegisterInstance(); 
             }
             catch (Exception e)
             {
@@ -53,7 +69,8 @@ namespace DuoVia.MpiVisor.Server
                     //clean up
                     _nodeServiceHost.Close();
                     _clusterServiceHost.Close();
-                    Visor.Current.Dispose();
+                    ServerVisor.Current.Dispose();
+                    if (null != _managementServiceHost) _managementServiceHost.Close();
                 }
                 catch (Exception e)
                 {

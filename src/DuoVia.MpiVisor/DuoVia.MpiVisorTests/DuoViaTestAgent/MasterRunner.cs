@@ -19,11 +19,11 @@ namespace DuoViaTestAgent
         public static void Run(string[] args)
         {
             //spawn worker agents, send messages and orchestrate work
-            Agent.Current.SpawnAgents(numberOfAgentsToSpawn, args);
+            Agent.Current.WorkerFactory.SpawnWorkerAgents(numberOfAgentsToSpawn, args);
             Message msg;
             do
             {
-                msg = Agent.Current.ReceiveAnyMessage();
+                msg = Agent.Current.MessageQueue.ReceiveAnyMessage();
                 switch (msg.MessageType)
                 {
                     //handle content types > -1 which are application specific
@@ -35,7 +35,7 @@ namespace DuoViaTestAgent
                         Log.Info("AgentId {0} sent message type 2 with {1}", msg.FromId, msg.Content);
 
                         //this test/demo just sends the message back to the sender
-                        Agent.Current.Send(
+                        Agent.Current.MessageQueue.Send(
                             toAgentId: msg.FromId,
                             messageType: SystemMessageTypes.Shutdown,
                             content: null);
@@ -45,7 +45,7 @@ namespace DuoViaTestAgent
                     case SystemMessageTypes.Started:
                         Log.Info("AgentId {0} reports being started.", msg.FromId);
                         //send demo/test content message
-                        Agent.Current.Send(
+                        Agent.Current.MessageQueue.Send(
                             toAgentId: msg.FromId,
                             messageType: 1,
                             content: "hello from 1");
@@ -60,6 +60,19 @@ namespace DuoViaTestAgent
                         break;
                     case SystemMessageTypes.Error:
                         Log.Info("AgentId {0} reports an error.", msg.FromId);
+                        break;
+                    case SystemMessageTypes.DeliveryFailure:
+                        //message sent to spawned agent was not able to be delivered
+                        //the msg.Content contains the orginal Message object sent
+                        Log.Info("Visor reports message delivery failure.", msg.FromId);
+                        break;
+                    case SystemMessageTypes.NullMessage:
+                        //this means the agent has waited more than the allotted time for a message
+                        //or the AbortMessageWaitVisitor function was set and returned true 
+                        //and a null message was returned by the ReceiveAnyMessage method
+                        //so the developer must decide whether to shut down or continue waiting
+                        Log.Info("Visor reports message wait timed out and a null message was returned.");
+                        continueProcessing = false;
                         break;
                     default:
                         Log.Info("AgentId {0} sent {1} with {2}", msg.FromId, msg.MessageType, msg.Content);

@@ -111,12 +111,18 @@ namespace DuoVia.Net
 
         public virtual void Dispose()
         {
-            _binWriter.Write((int)MessageType.TerminateConnection);
-            _binWriter.Flush();
-            _stream.Flush();
-            _binWriter.Close();
-            _binReader.Close();
-            _stream.Close();
+            try
+            {
+                _binWriter.Write((int)MessageType.TerminateConnection);
+                _binWriter.Flush();
+                _stream.Flush();
+            }
+            finally
+            {
+                if (null != _binWriter) _binWriter.Dispose();
+                if (null != _binReader) _binReader.Dispose();
+                if (null != _stream) _stream.Dispose();
+            }
         }
 
         #endregion

@@ -6,71 +6,33 @@ using System.Text;
 
 namespace DuoVia.MpiVisor
 {
-    public enum LogLevel
-    {
-        Info,
-        Warning,
-        Error,
-        Debug
-    }
-
-    public enum LogType
-    {
-        None,
-        Console,
-        File,
-        Both
-    }
-
+    /// <summary>
+    /// Provides simple thread safe access to ILogger.
+    /// </summary>
     public static class Log
     {
         private static object syncRoot = new object();
-        private static LogLevel _logLevel = LogLevel.Info;
-        private static LogType _logType = LogType.File;
-        private static FileStream _fs;
-        private static StreamWriter _writer;
-
-        private static readonly DateTime _startedAt = DateTime.Now;
-        public static readonly string LogFileName;
+        private static ILogger _logger = null;
 
         static Log()
         {
-            var logFileName = (null == Agent.Current) ? "visor" : Agent.Current.Name;
-            var logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-            Directory.CreateDirectory(logDir);
-            Log.LogFileName = (null == Agent.Current)
-                ? Path.Combine(logDir,
-                        string.Format("log-{0}-Visor.log", DateTime.Now.ToString("yyyyMMdd")))
-                : Path.Combine(logDir, 
-                        string.Format("log-{0}-{1}.log", _startedAt.ToString("yyyyMMdd-hh-mm-ss-fff"), Agent.Current.Name));
+            _logger = _logger ?? new Logger();
         }
 
-        private static void AssureFileOpen()
+        /// <summary>
+        /// Allows injection of a logger other than the default Logger.
+        /// </summary>
+        /// <param name="logger"></param>
+        public static void SetLogger(ILogger logger)
         {
-            if (null == _writer)
-            {
-                _fs = File.Open(LogFileName, FileMode.Append, FileAccess.Write, FileShare.Read);
-                _writer = new StreamWriter(_fs);
-                _writer.AutoFlush = true;
-            }
-        }
-
-        private static void AssureFileClosed()
-        {
-            if (null != _writer)
-            {
-                _writer.Flush();
-                _writer.Close();
-                _writer = null;
-                _fs = null;
-            }
+            _logger = logger;
         }
 
         public static void Close()
         {
             lock (syncRoot)
             {
-                AssureFileClosed();
+                _logger.Dispose();
             }
         }
 
@@ -78,13 +40,13 @@ namespace DuoVia.MpiVisor
         {
             get
             {
-                return _logLevel;
+                return _logger.LogLevel;
             }
             set 
             {
                 lock(syncRoot)
                 {
-                    _logLevel = value;
+                    _logger.LogLevel = value;
                 }
             }
         }
@@ -93,21 +55,13 @@ namespace DuoVia.MpiVisor
         {
             get
             {
-                return _logType;
+                return _logger.LogType;
             }
             set
             {
                 lock(syncRoot)
                 {
-                    _logType = value;
-                    if (_logType == MpiVisor.LogType.File || _logType == MpiVisor.LogType.Both)
-                    {
-                        AssureFileOpen();
-                    }
-                    else
-                    {
-                        AssureFileClosed();
-                    }
+                    _logger.LogType = value;
                 }
             }
         }
@@ -116,44 +70,7 @@ namespace DuoVia.MpiVisor
         {
             lock (syncRoot)
             {
-                if (_logType == MpiVisor.LogType.File || _logType == MpiVisor.LogType.Both)
-                {
-                    AssureFileOpen();
-                    WriteLineToFile(message);
-                    // if is an agent and not master, shuttle log message back to master
-                    if (null != Agent.Current && Agent.Current.AgentId != MpiConsts.MasterAgentId)
-                    {
-                        Agent.Current.Send(new Message
-                            {
-                                FromId = Agent.Current.AgentId,
-                                SessionId = Agent.Current.SessionId,
-                                ToId = MpiConsts.MasterAgentId,
-                                MessageType = -999999, //reserved for internal log shuttle
-                                Content = message
-                            });
-                    }
-                }
-                else
-                {
-                    AssureFileClosed();
-                }
-                if (_logType == MpiVisor.LogType.Console || _logType == MpiVisor.LogType.Both)
-                {
-                    Console.WriteLine(message);
-                }
-            }
-        }
-
-        private static void WriteLineToFile(string message)
-        {
-            try
-            {
-                _writer.WriteLine(message);
-                _writer.Flush();
-            }
-            catch (Exception e)
-            {
-                e.ProcessUnhandledException("MpiVisor");
+                _logger.LogMessage(message);
             }
         }
 
@@ -161,65 +78,40 @@ namespace DuoVia.MpiVisor
         {
             lock (syncRoot)
             {
-                if (_logType == MpiVisor.LogType.File || _logType == MpiVisor.LogType.Both)
-                {
-                    AssureFileClosed();
-                    var lines = File.ReadAllLines(LogFileName);
-                    AssureFileOpen();
-                    return lines;
-                }
-                else
-                    return new string[0];
+                return _logger.ReadFile();
             }
         }
 
         public static void Info(string formattedMessage, params object[] args)
         {
-            LogMessage(string.Format("{0}\t{1}\t{2}\t{3}",
-                GetTimeStamp(),
-                GetAgentId(),
-                LogLevel.Info, 
-                string.Format(formattedMessage, args).Flatten()));
+            lock (syncRoot)
+            {
+                _logger.Info(formattedMessage, args);
+            }
         }
 
         public static void Warning(string formattedMessage, params object[] args)
         {
-            LogMessage(string.Format("{0}\t{1}\t{2}\t{3}",
-                GetTimeStamp(),
-                GetAgentId(),
-                LogLevel.Warning,
-                string.Format(formattedMessage, args).Flatten()));
+            lock (syncRoot)
+            {
+                _logger.Warning(formattedMessage, args);
+            }
         }
 
         public static void Error(string formattedMessage, params object[] args)
         {
-            LogMessage(string.Format("{0}\t{1}\t{2}\t{3}",
-                GetTimeStamp(),
-                GetAgentId(),
-                LogLevel.Error,
-                string.Format(formattedMessage, args).Flatten()));
+            lock (syncRoot)
+            {
+                _logger.Error(formattedMessage, args);
+            }
         }
 
         public static void Debug(string formattedMessage, params object[] args)
         {
-            LogMessage(string.Format("{0}\t{1}\t{2}\t{3}", 
-                GetTimeStamp(),
-                GetAgentId(),
-                LogLevel.Debug,
-                string.Format(formattedMessage, args).Flatten()));
-        }
-
-        private static string GetTimeStamp()
-        {
-            return DateTime.Now.ToString("yyyyMMdd-hh:mm:ss.fff");
-        }
-
-        private static ushort GetAgentId()
-        {
-            if (Agent.Current != null)
-                return Agent.Current.AgentId;
-            else
-                return MpiConsts.BroadcastAgentId;
+            lock (syncRoot)
+            {
+                _logger.Debug(formattedMessage, args);
+            }
         }
     }
 }

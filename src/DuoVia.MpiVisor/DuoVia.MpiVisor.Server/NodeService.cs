@@ -14,11 +14,11 @@ namespace DuoVia.MpiVisor.Server
             return echo;
         }
 
-        public void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor)
+        public void SpawnStrategic(SessionInfo sessionInfo, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor)
         {
             var request = new SpawnRequest
             {
-                SessionId = sessionId,
+                Session = sessionInfo,
                 Count = count,
                 AgentExecutableName = agentExecutableName,
                 Package = package,
@@ -26,25 +26,25 @@ namespace DuoVia.MpiVisor.Server
                 Strategy = strategy,
                 Factor = factor
             };
-            Visor.Current.EnqueueSpawnRequest(request);
+            ServerVisor.Current.EnqueueSpawnRequest(request);
         }
 
-        public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args)
+        public void Spawn(SessionInfo sessionInfo, ushort count, string agentExecutableName, byte[] package, string[] args)
         {
             var request = new SpawnRequest 
-            { 
-                SessionId = sessionId, 
+            {
+                Session = sessionInfo, 
                 Count = count, 
                 AgentExecutableName = agentExecutableName, 
                 Package = package, 
                 Args = args 
             };
-            Visor.Current.EnqueueSpawnRequest(request);
+            ServerVisor.Current.EnqueueSpawnRequest(request);
         }
 
         public void Send(Message message)
         {
-            Visor.Current.EnqueueMessage(message);
+            ServerVisor.Current.EnqueueMessage(message);
         }
 
         public void Broadcast(Message message)
@@ -53,22 +53,24 @@ namespace DuoVia.MpiVisor.Server
             this.Send(message);
         }
 
-        public void RegisterMasterAgent(Guid sessionId)
+        public void RegisterMasterAgent(SessionInfo sessionInfo)
         {
-            Visor.Current.RegisterMasterAgent(sessionId);
+            ServerVisor.Current.RegisterMasterAgent(sessionInfo);
         }
 
         public void UnRegisterAgent(Guid sessionId, ushort agentId)
         {
-            if (agentId == MpiConsts.MasterAgentId)
-                Visor.Current.KillSession(sessionId);
-            else
-                Visor.Current.UnRegisterLocalAgent(sessionId, agentId);
+            ServerVisor.Current.UnRegisterLocalAgent(sessionId, agentId);
+        }
+
+        public void KillSession(Guid sessionId)
+        {
+            ServerVisor.Current.KillSession(sessionId);
         }
 
         public ushort[] GetRunningAgents(Guid sessionId)
         {
-            return Visor.Current.GetRunningAgents(sessionId);
+            return ServerVisor.Current.GetRunningAgents(sessionId);
         }
     }
 }

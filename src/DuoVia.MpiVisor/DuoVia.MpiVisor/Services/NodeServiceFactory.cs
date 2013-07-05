@@ -6,10 +6,16 @@ using DuoVia.Net.NamedPipes;
 
 namespace DuoVia.MpiVisor.Services
 {
+    public interface INodeServiceFactory : IDisposable
+    {
+        bool IsInternalServer { get; set; }
+        INodeService CreateConnection(string agentName, bool runInSingleLocalProcess);
+    }
+
     /// <summary>
     /// Factory creates node service proxy either internal or cluster node connected.
     /// </summary>
-    internal sealed class NodeServiceFactory : IDisposable
+    internal sealed class NodeServiceFactory : INodeServiceFactory
     {
         private InternalNodeService _localServerService = null;
         private NodeServiceProxy _svrProxy = null;
@@ -17,9 +23,9 @@ namespace DuoVia.MpiVisor.Services
 
         public bool IsInternalServer { get; set; }
 
-        public INodeService CreateConnection(string agentName, bool useInternalNodeService)
+        public INodeService CreateConnection(string agentName, bool runInSingleLocalProcess)
         {
-            if (!useInternalNodeService)
+            if (!runInSingleLocalProcess)
             {
                 var npEndPoint = new NpEndPoint(MpiConsts.NodeServicePipeName);
                 try

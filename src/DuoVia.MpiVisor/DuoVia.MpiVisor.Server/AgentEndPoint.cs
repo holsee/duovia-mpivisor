@@ -11,21 +11,21 @@ namespace DuoVia.MpiVisor.Server
     /// </summary>
     internal class AgentEndPoint
     {
-        public AgentEndPoint(Guid sessionId, ushort agentId, IPEndPoint endpoint)
+        public AgentEndPoint(SessionInfo sessionInfo, ushort agentId, IPEndPoint endpoint)
         {
-            SessionId = sessionId;
+            Session = sessionInfo;
             AgentId = agentId;
             NodeEndPoint = endpoint;
         }
 
-        public Guid SessionId { get; set; }
+        public SessionInfo Session { get; set; }
         public ushort AgentId { get; set; }
         public IPEndPoint NodeEndPoint { get; set; }
         public string Name
         {
             get
             {
-                return string.Format("{0}-{1}", AgentId, SessionId);
+                return string.Format("{0}-{1}", AgentId, Session.SessionId);
             }
         }
 
@@ -34,7 +34,7 @@ namespace DuoVia.MpiVisor.Server
             var compareTo = obj as AgentEndPoint;
             if (null == compareTo) return false;
             return (this.AgentId == compareTo.AgentId 
-                && this.SessionId == compareTo.SessionId 
+                && this.Session.SessionId == compareTo.Session.SessionId 
                 && IPEndPoint.Equals(this.NodeEndPoint, compareTo.NodeEndPoint));
         }
 

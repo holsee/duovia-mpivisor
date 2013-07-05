@@ -16,12 +16,13 @@ namespace DuoVia.MpiVisor.Services
     public interface INodeService
     {
         int Ping(int echo);
-        void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args);
-        void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor);
+        void Spawn(SessionInfo sessionInfo, ushort count, string agentExecutableName, byte[] package, string[] args);
+        void SpawnStrategic(SessionInfo sessionInfo, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor);
         void Send(Message message);
         void Broadcast(Message message);
-        void RegisterMasterAgent(Guid sessionId);
+        void RegisterMasterAgent(SessionInfo sessionInfo);
         void UnRegisterAgent(Guid sessionId, ushort agentId);
         ushort[] GetRunningAgents(Guid sessionId);
+        void KillSession(Guid sessionId);
     }
 }

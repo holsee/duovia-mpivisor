@@ -1,4 +1,5 @@
-﻿using DuoVia.MpiVisor.Services;
+﻿using DuoVia.MpiVisor.Management;
+using DuoVia.MpiVisor.Services;
 using DuoVia.Net.NamedPipes;
 using System;
 using System.Collections.Generic;
@@ -13,10 +14,10 @@ using System.Threading.Tasks;
 
 namespace DuoVia.MpiVisor.Server
 {
-    internal sealed class Visor : IDisposable
+    internal sealed class ServerVisor : IDisposable
     {
         //singleton instance
-        private static readonly Visor _current = new Visor();
+        private static readonly ServerVisor _current = new ServerVisor();
 
         private bool _continueProcessing = true;
         private readonly IPEndPoint _selfEndpoint;
@@ -26,7 +27,7 @@ namespace DuoVia.MpiVisor.Server
         private readonly string _packagesDir;
 
         private List<ClusterServerInfo> _runningClusterServers = new List<ClusterServerInfo>();
-        private Dictionary<Guid, AgentPortfolio> _agentPortfolios = new Dictionary<Guid,AgentPortfolio>();
+        private Dictionary<Guid, AgentPortfolio> _agentPortfolios = new Dictionary<Guid, AgentPortfolio>();
 
         private ManualResetEvent _outgoingMessageWaitHandle = new ManualResetEvent(false);
         private LinkedList<Message> _outgoingMessageBuffer = new LinkedList<Message>();
@@ -38,7 +39,7 @@ namespace DuoVia.MpiVisor.Server
 
         public IPEndPoint EndPoint { get { return _selfEndpoint; } }
 
-        private Visor()
+        private ServerVisor()
         {
             //configure self, master and backup endpoints
             var selfConfig = ConfigurationManager.AppSettings["ClusterNodeAddress"];
@@ -70,7 +71,7 @@ namespace DuoVia.MpiVisor.Server
             _spawningThread.Start();
         }
 
-        public static Visor Current { get { return _current; } }
+        public static ServerVisor Current { get { return _current; } }
 
         public void RegisterInstance()
         {
@@ -79,7 +80,8 @@ namespace DuoVia.MpiVisor.Server
                 _runningClusterServers.Add(new ClusterServerInfo 
                     { 
                         EndPoint = _selfEndpoint, 
-                        ProcessorCount = (ushort)Environment.ProcessorCount 
+                        ProcessorCount = (ushort)Environment.ProcessorCount,
+                        MachineName = Environment.MachineName
                     });
 
                 //if master and spawned agent are same as this node, do nothing more
@@ -132,7 +134,12 @@ namespace DuoVia.MpiVisor.Server
                         {
                             using (var proxy = new ClusterServiceProxy(node.EndPoint))
                             {
-                                proxy.RegisterClusterNode(new ClusterServerInfo { EndPoint = _selfEndpoint, ProcessorCount = (ushort)Environment.ProcessorCount });
+                                proxy.RegisterClusterNode(new ClusterServerInfo 
+                                { 
+                                    EndPoint = _selfEndpoint, 
+                                    ProcessorCount = (ushort)Environment.ProcessorCount, 
+                                    MachineName = Environment.MachineName 
+                                });
                             }
                         }
                     }
@@ -219,6 +226,7 @@ namespace DuoVia.MpiVisor.Server
                 }
                 catch (Exception e)
                 {
+                    SendFailedDeliveryMessage(message);
                     Log.Error("error sending message local: {0}", e);
                 }
             }
@@ -240,6 +248,7 @@ namespace DuoVia.MpiVisor.Server
                 }
                 catch (Exception e)
                 {
+                    SendFailedDeliveryMessage(message);
                     Log.Error("error relaying message: {0}", e);
                 }
             }
@@ -267,6 +276,7 @@ namespace DuoVia.MpiVisor.Server
                             }
                             catch (Exception e)
                             {
+                                SendFailedDeliveryMessage(message); 
                                 Log.Error("relay message error: {0}", e);
                             }
                         }
@@ -286,9 +296,19 @@ namespace DuoVia.MpiVisor.Server
                     }
                     catch (Exception e)
                     {
+                        SendFailedDeliveryMessage(message);
                         Log.Error("local message send error: {0}", e);
                     }
                 }
+            }
+        }
+
+        private void SendFailedDeliveryMessage(Message originalMessage)
+        {
+            if (originalMessage.MessageType != SystemMessageTypes.DeliveryFailure)
+            {
+                //reverse direction of original message - from is to and to is from
+                EnqueueMessage(new Message(originalMessage.SessionId, originalMessage.ToId, originalMessage.FromId, SystemMessageTypes.DeliveryFailure, originalMessage));
             }
         }
 
@@ -320,9 +340,8 @@ namespace DuoVia.MpiVisor.Server
                         {
                             //spawn local instance
                             ushort agentId = (ushort)(request.Offset + request.Count);
-                            Guid sessionId = request.SessionId;
-                            SpawnAgent(request, agentId, sessionId);
-                            BroadcastSpawnRegisterAgentMessages(agentId, sessionId);
+                            SpawnAgent(request, agentId, request.Session.SessionId);
+                            BroadcastSpawnRegisterAgentMessages(agentId, request.Session);
                         }
                         else
                         {
@@ -343,7 +362,7 @@ namespace DuoVia.MpiVisor.Server
             {
                 if (!_agentPortfolios.ContainsKey(sessionId))
                 {
-                    _agentPortfolios.Add(sessionId, new AgentPortfolio(sessionId));
+                    _agentPortfolios.Add(sessionId, new AgentPortfolio(request.Session));
                 }
                 var agentPortfolio = _agentPortfolios[sessionId];
                 //create new process when no instance occurs locally
@@ -356,21 +375,21 @@ namespace DuoVia.MpiVisor.Server
                     SpawnAgentInExistingAgentProcess(request, agentId, agentPortfolio);
                 }
                 agentPortfolio.LocalAgentIds.Add(agentId);
-                agentPortfolio.Agents.Add(agentId, new AgentEndPoint(sessionId, agentId, _selfEndpoint));
+                agentPortfolio.Agents.Add(agentId, new AgentEndPoint(request.Session, agentId, _selfEndpoint));
             }
         }
 
         private void SpawnAgentProcess(SpawnRequest request, ushort agentId, Guid sessionId, AgentPortfolio agentPortfolio)
         {
-            var unpackPath = Path.Combine(_appsRootDir, string.Format("app-{0}", request.SessionId));
+            var unpackPath = Path.Combine(_appsRootDir, string.Format("app-{0}", request.Session.SessionId));
             if (!Directory.Exists(unpackPath)) //possible we have already unpacked this one
             {
                 //var packageFileName = Path.Combine(_packagesDir, string.Format("p-{0}.zip", request.SessionId));
                 Directory.CreateDirectory(unpackPath);
-                ZipUtils.UnpackPackage(unpackPath, request.Package);
+                AgentPackager.UnpackPackage(unpackPath, request.Package);
             }
             //this is our first deploy to this cluster node, so start process
-            var basePath = Path.Combine(_appsRootDir, string.Format("app-{0}", request.SessionId));
+            var basePath = Path.Combine(_appsRootDir, string.Format("app-{0}", request.Session.SessionId));
             var assemblyLocation = Path.Combine(basePath, request.AgentExecutableName);
             var info = (null != request.Args && request.Args.Length > 0)
                 ? new ProcessStartInfo(assemblyLocation, string.Join(" ", request.Args))
@@ -404,7 +423,7 @@ namespace DuoVia.MpiVisor.Server
             }
         }
 
-        private void BroadcastSpawnRegisterAgentMessages(ushort agentId, Guid sessionId)
+        private void BroadcastSpawnRegisterAgentMessages(ushort agentId, SessionInfo sessionInfo)
         {
             //registered local node in lock, now send message to all
             lock (_runningClusterServers)
@@ -421,7 +440,7 @@ namespace DuoVia.MpiVisor.Server
                             {
                                 using (var proxy = new ClusterServiceProxy(nodeInstance.EndPoint))
                                 {
-                                    proxy.RegisterAgent(sessionId, agentId, _selfEndpoint.Address.ToString(), _selfEndpoint.Port);
+                                    proxy.RegisterAgent(sessionInfo, agentId, _selfEndpoint.Address.ToString(), _selfEndpoint.Port);
                                 }
                             }
                         }
@@ -497,7 +516,7 @@ namespace DuoVia.MpiVisor.Server
                     {
                         var directedSpawnRequest = new SpawnRequest
                         {
-                            SessionId = request.SessionId,
+                            Session = request.Session,
                             AgentExecutableName = request.AgentExecutableName,
                             Count = 1, //only one agent spawned per directive
                             Offset = (ushort)(request.Offset + offsetIncrement),
@@ -554,7 +573,7 @@ namespace DuoVia.MpiVisor.Server
                 {
                     var directedSpawnRequest = new SpawnRequest
                     {
-                        SessionId = request.SessionId,
+                        Session = request.Session,
                         AgentExecutableName = request.AgentExecutableName,
                         Count = 1, //only one agent spawned per directive
                         Offset = (ushort)(request.Offset + i),
@@ -587,18 +606,18 @@ namespace DuoVia.MpiVisor.Server
             }
         }
 
-        public void RegisterAgent(Guid sessionId, ushort agentId, string ipAddress, int port)
+        public void RegisterAgent(SessionInfo sessionInfo, ushort agentId, string ipAddress, int port)
         {
             lock (_agentPortfolios)
             {
-                var agent = new AgentEndPoint(sessionId, agentId, new IPEndPoint(IPAddress.Parse(ipAddress), port));
-                if (!_agentPortfolios.ContainsKey(sessionId))
+                var agent = new AgentEndPoint(sessionInfo, agentId, new IPEndPoint(IPAddress.Parse(ipAddress), port));
+                if (!_agentPortfolios.ContainsKey(sessionInfo.SessionId))
                 {
-                    _agentPortfolios.Add(sessionId, new AgentPortfolio(sessionId));
+                    _agentPortfolios.Add(sessionInfo.SessionId, new AgentPortfolio(sessionInfo));
                 }
-                if (!_agentPortfolios[sessionId].Agents.ContainsKey(agentId))
+                if (!_agentPortfolios[sessionInfo.SessionId].Agents.ContainsKey(agentId))
                 {
-                    _agentPortfolios[sessionId].Agents.Add(agentId, agent);
+                    _agentPortfolios[sessionInfo.SessionId].Agents.Add(agentId, agent);
                 }
             }
         }
@@ -612,6 +631,96 @@ namespace DuoVia.MpiVisor.Server
                     var p = _agentPortfolios[sessionId];
                     if (p.LocalAgentIds.Contains(agentId)) p.LocalAgentIds.Remove(agentId);
                     if (p.Agents.ContainsKey(agentId)) p.Agents.Remove(agentId);
+                }
+            }
+        }
+
+        public void UnRegisterLocalAgent(Guid sessionId, ushort agentId)
+        {
+            lock (_agentPortfolios)
+            {
+                if (_agentPortfolios.ContainsKey(sessionId))
+                {
+                    var p = _agentPortfolios[sessionId];
+                    if (p.LocalAgentIds.Contains(agentId)) p.LocalAgentIds.Remove(agentId);
+                    if (p.Agents.ContainsKey(agentId)) p.Agents.Remove(agentId);
+                }
+            }
+            BroadcastUnRegisterLocalAgentNotifications(sessionId, agentId);
+        }
+
+        private void BroadcastUnRegisterLocalAgentNotifications(Guid sessionId, ushort agentId)
+        {
+            lock (_runningClusterServers)
+            {
+                foreach (var node in _runningClusterServers)
+                {
+                    var nodeInstance = node;
+                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint)) //do not send to self
+                    {
+                        Task.Factory.StartNew(() =>
+                        {
+                            try
+                            {
+                                using (var proxy = new ClusterServiceProxy(nodeInstance.EndPoint))
+                                {
+                                    proxy.UnRegisterAgent(sessionId, agentId);
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                Log.Error("proxy UnRegisterAgent: {0}", e);
+                            }
+                        }, TaskCreationOptions.LongRunning);
+                    }
+                }
+            }
+        }
+
+        public void RegisterMasterAgent(SessionInfo sessionInfo)
+        {
+            lock (_agentPortfolios)
+            {
+                if (!_agentPortfolios.ContainsKey(sessionInfo.SessionId))
+                {
+                    _agentPortfolios.Add(sessionInfo.SessionId, new AgentPortfolio(sessionInfo));
+                }
+                if (_agentPortfolios.ContainsKey(sessionInfo.SessionId))
+                {
+                    var masterAgent = new AgentEndPoint(sessionInfo, 0, _selfEndpoint);
+                    var p = _agentPortfolios[sessionInfo.SessionId];
+                    if (!p.LocalAgentIds.Contains(MpiConsts.MasterAgentId)) p.LocalAgentIds.Add(MpiConsts.MasterAgentId);
+                    if (!p.Agents.ContainsKey(MpiConsts.MasterAgentId)) p.Agents.Add(MpiConsts.MasterAgentId, masterAgent);
+                    p.LocalProcessAgentName = GetAgentName(MpiConsts.MasterAgentId, sessionInfo.SessionId);
+                }
+            }
+            SendRegisterMasterAgentNotifications(sessionInfo);
+        }
+
+        private void SendRegisterMasterAgentNotifications(SessionInfo sessionInfo)
+        {
+            lock (_runningClusterServers)
+            {
+                foreach (var node in _runningClusterServers)
+                {
+                    var nodeInstance = node;
+                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint)) //do not send to self
+                    {
+                        Task.Factory.StartNew(() =>
+                        {
+                            try
+                            {
+                                using (var proxy = new ClusterServiceProxy(nodeInstance.EndPoint))
+                                {
+                                    proxy.RegisterAgent(sessionInfo, 0, _selfEndpoint.Address.ToString(), _selfEndpoint.Port);
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                Log.Error("register master agent: {0}", e);
+                            }
+                        }, TaskCreationOptions.LongRunning);
+                    }
                 }
             }
         }
@@ -637,7 +746,7 @@ namespace DuoVia.MpiVisor.Server
                             }
                             catch (Exception e)
                             {
-                                Log.Error("register master agent: {0}", e);
+                                Log.Error("proxy kill session: {0}", e);
                             }
                         }, TaskCreationOptions.LongRunning);
                     }
@@ -687,96 +796,6 @@ namespace DuoVia.MpiVisor.Server
                 catch (Exception e)
                 {
                     Log.Error("unable to delete session folder {0} error: {1}", folder, e);
-                }
-            }
-        }
-
-        public void UnRegisterLocalAgent(Guid sessionId, ushort agentId)
-        {
-            lock (_agentPortfolios)
-            {
-                if (_agentPortfolios.ContainsKey(sessionId))
-                {
-                    var p = _agentPortfolios[sessionId];
-                    if (p.LocalAgentIds.Contains(agentId)) p.LocalAgentIds.Remove(agentId);
-                    if (p.Agents.ContainsKey(agentId)) p.Agents.Remove(agentId);
-                }
-            }
-            BroadcastUnRegisterLocalAgentNotifications(sessionId, agentId);
-        }
-
-        private void BroadcastUnRegisterLocalAgentNotifications(Guid sessionId, ushort agentId)
-        {
-            lock (_runningClusterServers)
-            {
-                foreach (var node in _runningClusterServers)
-                {
-                    var nodeInstance = node;
-                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint)) //do not send to self
-                    {
-                        Task.Factory.StartNew(() =>
-                        {
-                            try
-                            {
-                                using (var proxy = new ClusterServiceProxy(nodeInstance.EndPoint))
-                                {
-                                    proxy.UnRegisterAgent(sessionId, agentId);
-                                }
-                            }
-                            catch (Exception e)
-                            {
-                                Log.Error("register master agent: {0}", e);
-                            }
-                        }, TaskCreationOptions.LongRunning);
-                    }
-                }
-            }
-        }
-
-        public void RegisterMasterAgent(Guid sessionId)
-        {
-            lock (_agentPortfolios)
-            {
-                if (!_agentPortfolios.ContainsKey(sessionId))
-                {
-                    _agentPortfolios.Add(sessionId, new AgentPortfolio(sessionId));
-                }
-                if (_agentPortfolios.ContainsKey(sessionId))
-                {
-                    var masterAgent = new AgentEndPoint(sessionId, 0, _selfEndpoint);
-                    var p = _agentPortfolios[sessionId];
-                    if (!p.LocalAgentIds.Contains(MpiConsts.MasterAgentId)) p.LocalAgentIds.Add(MpiConsts.MasterAgentId);
-                    if (!p.Agents.ContainsKey(MpiConsts.MasterAgentId)) p.Agents.Add(MpiConsts.MasterAgentId, masterAgent);
-                    p.LocalProcessAgentName = GetAgentName(MpiConsts.MasterAgentId, sessionId);
-                }
-            }
-            SendRegisterMasterAgentNotifications(sessionId);
-        }
-
-        private void SendRegisterMasterAgentNotifications(Guid sessionId)
-        {
-            lock (_runningClusterServers)
-            {
-                foreach (var node in _runningClusterServers)
-                {
-                    var nodeInstance = node;
-                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint)) //do not send to self
-                    {
-                        Task.Factory.StartNew(() =>
-                        {
-                            try
-                            {
-                                using (var proxy = new ClusterServiceProxy(nodeInstance.EndPoint))
-                                {
-                                    proxy.RegisterAgent(sessionId, 0, _selfEndpoint.Address.ToString(), _selfEndpoint.Port);
-                                }
-                            }
-                            catch (Exception e)
-                            {
-                                Log.Error("register master agent: {0}", e);
-                            }
-                        }, TaskCreationOptions.LongRunning);
-                    }
                 }
             }
         }
@@ -839,7 +858,12 @@ namespace DuoVia.MpiVisor.Server
             //unregister this node with all others
             lock (_runningClusterServers)
             {
-                var self = new ClusterServerInfo { EndPoint = _selfEndpoint, ProcessorCount = (ushort)Environment.ProcessorCount };
+                var self = new ClusterServerInfo 
+                    { 
+                        EndPoint = _selfEndpoint, 
+                        ProcessorCount = (ushort)Environment.ProcessorCount, 
+                        MachineName = Environment.MachineName 
+                    };
                 if (_runningClusterServers.Contains(self)) _runningClusterServers.Remove(self);
                 foreach (var node in _runningClusterServers)
                 {
@@ -858,7 +882,12 @@ namespace DuoVia.MpiVisor.Server
             {
                 try
                 {
-                    var self = new ClusterServerInfo { EndPoint = _selfEndpoint, ProcessorCount = (ushort)Environment.ProcessorCount };
+                    var self = new ClusterServerInfo 
+                        { 
+                            EndPoint = _selfEndpoint, 
+                            ProcessorCount = (ushort)Environment.ProcessorCount, 
+                            MachineName = Environment.MachineName 
+                        };
                     using (var proxy = new ClusterServiceProxy(node.EndPoint))
                     {
                         proxy.UnRegisterClusterNode(self);
@@ -866,10 +895,45 @@ namespace DuoVia.MpiVisor.Server
                 }
                 catch (Exception e)
                 {
-                    Log.Error("register master agent: {0}", e);
+                    Log.Error("unregister agent: {0}", e);
                 }
             }, TaskCreationOptions.LongRunning);
         }
+
+        public ManagementInfo GetManagementInfo()
+        {
+            //private List<ClusterServerInfo> _runningClusterServers = new List<ClusterServerInfo>();
+            //private Dictionary<Guid, AgentPortfolio> _agentPortfolios = new Dictionary<Guid, AgentPortfolio>();
+            var result = new ManagementInfo();
+            lock (_runningClusterServers)
+            {
+                var nodeList = new List<NodeInfo>();
+                foreach (var item in _runningClusterServers)
+                {
+                    nodeList.Add(new NodeInfo() { EndPoint = item.EndPoint, MachineName = item.MachineName, ProcessorCount = item.ProcessorCount });
+                }
+                result.Nodes = nodeList.ToArray();
+            }
+            lock (_agentPortfolios)
+            {
+                var sessionList = new List<SessionSummary>();
+                foreach (var item in _agentPortfolios)
+                {
+                    var agentCounts = new Dictionary<IPEndPoint, ushort>();
+                    foreach (var agent in item.Value.Agents)
+                    {
+                        if (!agentCounts.ContainsKey(agent.Value.NodeEndPoint))
+                            agentCounts.Add(agent.Value.NodeEndPoint, 1);
+                        else
+                            agentCounts[agent.Value.NodeEndPoint]++;
+                    }
+                    sessionList.Add(new SessionSummary(item.Value.Session.SessionId, item.Value.Session.ProcessName, item.Value.Session.Arguments, item.Value.Session.CreatedUtc, agentCounts));
+                }
+                result.Sessions = sessionList.ToArray();
+            }
+            return result;
+        }
+
 
         public void Dispose()
         {

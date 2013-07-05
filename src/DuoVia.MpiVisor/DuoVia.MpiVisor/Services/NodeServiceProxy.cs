@@ -20,14 +20,14 @@ namespace DuoVia.MpiVisor.Services
             return Proxy.Ping(echo);
         }
 
-        public void Spawn(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args)
+        public void Spawn(SessionInfo sessionInfo, ushort count, string agentExecutableName, byte[] package, string[] args)
         {
-            Proxy.Spawn(sessionId, count, agentExecutableName, package, args);
+            Proxy.Spawn(sessionInfo, count, agentExecutableName, package, args);
         }
 
-        public void SpawnStrategic(Guid sessionId, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor)
+        public void SpawnStrategic(SessionInfo sessionInfo, ushort count, string agentExecutableName, byte[] package, string[] args, int strategy, double factor)
         {
-            Proxy.SpawnStrategic(sessionId, count, agentExecutableName, package, args, strategy, factor);
+            Proxy.SpawnStrategic(sessionInfo, count, agentExecutableName, package, args, strategy, factor);
         }
 
         public void Send(Message message)
@@ -40,14 +40,19 @@ namespace DuoVia.MpiVisor.Services
             Proxy.Send(message);
         }
 
-        public void RegisterMasterAgent(Guid sessionId)
+        public void RegisterMasterAgent(SessionInfo sessionInfo)
         {
-            Proxy.RegisterMasterAgent(sessionId);
+            Proxy.RegisterMasterAgent(sessionInfo);
         }
 
         public void UnRegisterAgent(Guid sessionId, ushort agentId)
         {
             Proxy.UnRegisterAgent(sessionId, agentId);
+        }
+
+        public void KillSession(Guid sessionId)
+        {
+            Proxy.KillSession(sessionId);
         }
 
         public ushort[] GetRunningAgents(Guid sessionId)

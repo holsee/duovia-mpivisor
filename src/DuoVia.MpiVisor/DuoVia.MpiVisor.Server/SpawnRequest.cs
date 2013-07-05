@@ -8,7 +8,7 @@ namespace DuoVia.MpiVisor.Server
     [Serializable]
     public class SpawnRequest
     {
-        public Guid SessionId { get; set; }
+        public SessionInfo Session { get; set; }
         public ushort Count { get; set; }
         public string AgentExecutableName { get; set; }
         public byte[] Package { get; set; }

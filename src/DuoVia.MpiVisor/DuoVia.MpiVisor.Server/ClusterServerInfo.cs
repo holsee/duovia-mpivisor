@@ -11,6 +11,7 @@ namespace DuoVia.MpiVisor.Server
     {
         public IPEndPoint EndPoint { get; set; }
         public ushort ProcessorCount { get; set; }
+        public string MachineName { get; set; }
 
         public override int GetHashCode()
         {
