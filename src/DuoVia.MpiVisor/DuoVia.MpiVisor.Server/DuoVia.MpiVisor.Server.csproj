@@ -37,6 +37,10 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="DuoVia.Net, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\DuoVia.Net.1.1.0\lib\net40\DuoVia.Net.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
     <Reference Include="System.Configuration.Install" />
@@ -78,10 +82,6 @@
     <Compile Include="ServerVisor.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\DuoVia.Net\DuoVia.Net\DuoVia.Net.csproj">
-      <Project>{4f36b450-a225-4d13-9786-8b84ac25a304}</Project>
-      <Name>DuoVia.Net</Name>
-    </ProjectReference>
     <ProjectReference Include="..\DuoVia.MpiVisor.Management\DuoVia.MpiVisor.Management.csproj">
       <Project>{a4ca210e-6aca-4ded-bf6d-af5161d8c682}</Project>
       <Name>DuoVia.MpiVisor.Management</Name>
@@ -95,6 +95,7 @@
     <None Include="App.config">
       <SubType>Designer</SubType>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="_license.txt" />
