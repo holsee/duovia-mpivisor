@@ -27,7 +27,7 @@ namespace DuoVia.MpiVisor.Services
         {
             if (!runInSingleLocalProcess)
             {
-                var npEndPoint = new NpEndPoint(MpiConsts.NodeServicePipeName);
+                var npEndPoint = new NpEndPoint(MpiConsts.NodeServicePipeName, 2500);
                 try
                 {
                     //connect to the server process 
@@ -50,7 +50,7 @@ namespace DuoVia.MpiVisor.Services
             _localServerServiceHost.Open();
 
             //connect to the local
-            var localNpEndPoint = new NpEndPoint(pipeName);
+            var localNpEndPoint = new NpEndPoint(pipeName, 2500);
             _svrProxy = new NodeServiceProxy(localNpEndPoint);
             if (_svrProxy.Ping(0) != 0) throw new Exception("unable to connect to regular server");
             return _svrProxy;
