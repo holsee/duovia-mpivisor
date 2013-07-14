@@ -28,7 +28,7 @@ namespace DuoVia.MpiVisor.Server
         private Dictionary<Guid, AgentPortfolio> _agentPortfolios = new Dictionary<Guid, AgentPortfolio>();
 
         private ManualResetEvent _outgoingMessageWaitHandle = new ManualResetEvent(false);
-        private LinkedList<Message> _outgoingMessageBuffer = new LinkedList<Message>();
+        private Queue<Message> _outgoingMessageBuffer = new Queue<Message>();
         private Thread _sendMessagesThread = null;
 
         private ManualResetEvent _spawningWaitHandle = new ManualResetEvent(false);
@@ -207,11 +207,11 @@ namespace DuoVia.MpiVisor.Server
                 Message message = null;
                 lock (_outgoingMessageBuffer)
                 {
-                    LinkedListNode<Message> firstMessage = _outgoingMessageBuffer.First;
-                    if (firstMessage != null)
+                    if (_outgoingMessageBuffer.Count > 0)
                     {
-                        message = firstMessage.Value;
-                        _outgoingMessageBuffer.RemoveFirst();
+                        message = _outgoingMessageBuffer.Dequeue();
+                        //attempt to prevent excessive memory footprint
+                        if (_outgoingMessageBuffer.Count > 1000) _outgoingMessageBuffer.TrimExcess(); 
                     }
                     else
                     {
@@ -352,6 +352,8 @@ namespace DuoVia.MpiVisor.Server
                     if (_spawnRequestBuffer.Count > 0)
                     {
                         request = _spawnRequestBuffer.Dequeue();
+                        //attempt to prevent excessive memory footprint
+                        if (_spawnRequestBuffer.Count > 1000) _spawnRequestBuffer.TrimExcess(); 
                     }
                     else
                     {
@@ -428,6 +430,7 @@ namespace DuoVia.MpiVisor.Server
 
             var localProcess = Process.Start(info);
             agentPortfolio.LocalProcess = localProcess;
+            agentPortfolio.LocalProcessAgentId = agentId;
             agentPortfolio.LocalProcessAgentName = GetAgentName(agentId, sessionId);
         }
 
@@ -802,16 +805,22 @@ namespace DuoVia.MpiVisor.Server
             {
                 if (!_agentPortfolios.ContainsKey(sessionId)) return; //nothing to do
                 var agentPortfolio = _agentPortfolios[sessionId];
+                _agentPortfolios.Remove(sessionId);
                 if (null != agentPortfolio.LocalProcess)
                 {
                     try
                     {
-                        if (!agentPortfolio.LocalProcess.HasExited)
+                        try
                         {
-                            agentPortfolio.LocalProcess.Kill();
-                            agentPortfolio.LocalProcess.WaitForExit();
-                            agentPortfolio.LocalProcess.Close();
-                            agentPortfolio.LocalProcess = null;
+                            if (!agentPortfolio.LocalProcess.HasExited)
+                            {
+                                agentPortfolio.LocalProcess.Kill();
+                                agentPortfolio.LocalProcess.WaitForExit();
+                            }
+                        }
+                        finally
+                        {
+                            agentPortfolio.LocalProcess.Dispose();
                         }
                     }
                     catch (Exception e)
@@ -820,17 +829,11 @@ namespace DuoVia.MpiVisor.Server
                     }
                 }
 
-                foreach (var agentId in agentPortfolio.LocalAgentIds)
-                {
-                    agentPortfolio.Agents.Remove(agentId);
-                }
-                agentPortfolio.LocalAgentIds.Clear();
-
-                //now delete local app execution folder - cannot delete immediately
+                //now delete non-master local app execution folder
                 var folder = Path.Combine(_appsRootDir, string.Format("app-{0}", sessionId));
                 try
                 {
-                    Directory.Delete(folder, true);
+                    if (Directory.Exists(folder)) Directory.Delete(folder, true);
                 }
                 catch (Exception e)
                 {
@@ -845,7 +848,7 @@ namespace DuoVia.MpiVisor.Server
             {
                 if (_continueProcessing)
                 {
-                    _outgoingMessageBuffer.AddLast(message);
+                    _outgoingMessageBuffer.Enqueue(message);
                     _outgoingMessageWaitHandle.Set();
                 }
             }

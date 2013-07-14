@@ -10,6 +10,9 @@ namespace DuoVia.MpiVisor
 {
     public static class AgentPackager
     {
+        private static bool _hasExecutedPackageAgent = false;
+        private static bool _hasExecutedUnpackPackage = false;
+
         /// <summary>
         /// Reads DLLs, EXEs and CONFIG files and compresses them into a byte array.
         /// Files read and compressed from agent app domain base directory. Includes subdirectories.
@@ -17,6 +20,12 @@ namespace DuoVia.MpiVisor
         /// <returns></returns>
         public static byte[] PackageAgent()
         {
+            //collect on subsequent calls to clean up package related byte array and stream objects
+            if (_hasExecutedPackageAgent)
+                GC.Collect();
+            else
+                _hasExecutedPackageAgent = true;
+
             var rootDir = AppDomain.CurrentDomain.BaseDirectory;
             
             //TODO - add manifest or other mechanism to allow more than assemblies and config files to be deployed
@@ -36,6 +45,12 @@ namespace DuoVia.MpiVisor
         /// <param name="package"></param>
         public static void UnpackPackage(string targetDir, byte[] package)
         {
+            //collect on subsequent calls to clean up package related byte array and stream objects
+            if (_hasExecutedUnpackPackage)
+                GC.Collect();
+            else
+                _hasExecutedUnpackPackage = true;
+
             var uncompressedFiles = UncompressFiles(package);
             foreach (var kvp in uncompressedFiles)
             {
