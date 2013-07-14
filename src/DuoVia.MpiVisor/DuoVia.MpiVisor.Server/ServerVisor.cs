@@ -21,12 +21,10 @@ namespace DuoVia.MpiVisor.Server
 
         private bool _continueProcessing = true;
         private readonly IPEndPoint _selfEndpoint;
-        private readonly IPEndPoint _masterEndpoint;
-        private readonly IPEndPoint _backupEndpoint;
         private readonly string _appsRootDir;
         private readonly string _packagesDir;
 
-        private List<ClusterServerInfo> _runningClusterServers = new List<ClusterServerInfo>();
+        private ClusterServerConfig _clusterServerConfig = ClusterServerConfig.Load();
         private Dictionary<Guid, AgentPortfolio> _agentPortfolios = new Dictionary<Guid, AgentPortfolio>();
 
         private ManualResetEvent _outgoingMessageWaitHandle = new ManualResetEvent(false);
@@ -34,7 +32,7 @@ namespace DuoVia.MpiVisor.Server
         private Thread _sendMessagesThread = null;
 
         private ManualResetEvent _spawningWaitHandle = new ManualResetEvent(false);
-        private LinkedList<SpawnRequest> _spawnRequestBuffer = new LinkedList<SpawnRequest>();
+        private Queue<SpawnRequest> _spawnRequestBuffer = new Queue<SpawnRequest>();
         private Thread _spawningThread = null;
 
         public IPEndPoint EndPoint { get { return _selfEndpoint; } }
@@ -43,12 +41,7 @@ namespace DuoVia.MpiVisor.Server
         {
             //configure self, master and backup endpoints
             var selfConfig = ConfigurationManager.AppSettings["ClusterNodeAddress"];
-            var masterConfig = ConfigurationManager.AppSettings["MasterClusterNodeAddress"];
-            var backupConfig = ConfigurationManager.AppSettings["MasterBackupClusterNodeAddress"];
-
             _selfEndpoint = GetEndPointFromConfig(selfConfig);
-            _masterEndpoint = GetEndPointFromConfig(masterConfig);
-            _backupEndpoint = GetEndPointFromConfig(backupConfig);
             
             //directories
             _packagesDir = ConfigurationManager.AppSettings["PackagesDirectory"];
@@ -75,62 +68,96 @@ namespace DuoVia.MpiVisor.Server
 
         public void RegisterInstance()
         {
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
-                _runningClusterServers.Add(new ClusterServerInfo 
-                    { 
-                        EndPoint = _selfEndpoint, 
+                var self = new ClusterServerInfo
+                    {
+                        EndPoint = _selfEndpoint,
                         ProcessorCount = (ushort)Environment.ProcessorCount,
-                        MachineName = Environment.MachineName
-                    });
+                        MachineName = Environment.MachineName,
+                        IsActive = true
+                    };
 
-                //if master and spawned agent are same as this node, do nothing more
-                if (_selfEndpoint == _masterEndpoint && _selfEndpoint == _backupEndpoint) return; //bail - nothing more to do
-
-                bool tryBackup = false;
-                if (!IPEndPoint.Equals(_selfEndpoint, _masterEndpoint))
+                //get registered nodes from other running nodes to compare and reconcile config
+                ClusterServerInfo[] registeredNodes = null;
+                for (int i = 0; i < _clusterServerConfig.ClusterServers.Count; i++)
                 {
-                    try
+                    var node = _clusterServerConfig.ClusterServers[i];
+                    if (!node.Equals(self)) //any but self
                     {
-                        using (var proxy = new ClusterServiceProxy(_masterEndpoint))
+                        try
                         {
-                            var nodes = proxy.GetRegisteredNodes();
-                            foreach (var node in nodes)
+                            //TODO - use IsActive first and then try inactive nodes?
+                            using (var proxy = new ClusterServiceProxy(node.EndPoint))
                             {
-                                if (!_runningClusterServers.Contains(node)) _runningClusterServers.Add(node);
+                                registeredNodes = proxy.GetRegisteredNodes();
                             }
+                            break;
+                        }
+                        catch (Exception e)
+                        {
+                            //skip logging - means cannot connect to node - try next one
+                            //Log.Error("error on proxy: {0}", e);
                         }
                     }
-                    catch (Exception e)
-                    {
-                        Log.Error("error on master proxy: {0}", e);
-                        tryBackup = true;
-                    }
                 }
-                if (tryBackup && !IPEndPoint.Equals(_selfEndpoint, _backupEndpoint))
+                if (null != registeredNodes && registeredNodes.Length > 0)
                 {
-                    try
+                    //add or update registered nodes
+                    foreach (var node in registeredNodes)
                     {
-                        using (var proxy = new ClusterServiceProxy(_backupEndpoint))
+                        //update or add
+                        var index = _clusterServerConfig.ClusterServers.IndexOf(node);
+                        if (index > -1)
                         {
-                            var nodes = proxy.GetRegisteredNodes();
-                            foreach (var node in nodes)
-                            {
-                                if (!_runningClusterServers.Contains(node)) _runningClusterServers.Add(node);
-                            }
+                            _clusterServerConfig.ClusterServers[index] = node;
+                        }
+                        else
+                        {
+                            _clusterServerConfig.ClusterServers.Add(node);
                         }
                     }
-                    catch (Exception e)
+
+                    //update configured nodes that are not in registered node list
+                    foreach (var node in _clusterServerConfig.ClusterServers)
                     {
-                        Log.Error("error on backup proxy: {0}", e);
+                        //do not change self here
+                        if (!node.EndPoint.Equals(_selfEndpoint))
+                        {
+                            if (!registeredNodes.Contains(node)) node.IsActive = false;
+                        }
+                    }
+                }
+                else
+                {
+                    //no response from any remote nodes, so set all non "self" nodes to IsActive = false
+                    foreach (var node in _clusterServerConfig.ClusterServers)
+                    {
+                        if (!node.EndPoint.Equals(_selfEndpoint)) node.IsActive = false;
                     }
                 }
 
-                foreach (var node in _runningClusterServers)
+                //update self to active or add this node to config if not already there
+                var selfIndex = _clusterServerConfig.ClusterServers.IndexOf(self);
+                if (selfIndex > -1)
+                {
+                    _clusterServerConfig.ClusterServers[selfIndex].IsActive = true;
+                }
+                else
+                {
+                    _clusterServerConfig.ClusterServers.Add(self);
+                }
+
+                //persist to disk
+                _clusterServerConfig.Save();
+
+                //notify all other active nodes
+                foreach (var node in _clusterServerConfig.ClusterServers)
                 {
                     try
                     {
-                        if (!IPEndPoint.Equals(node.EndPoint, _selfEndpoint)) //do not send to self
+                        //do not send to self and send only to active nodes
+                        if (!IPEndPoint.Equals(node.EndPoint, _selfEndpoint) && node.IsActive)
                         {
                             using (var proxy = new ClusterServiceProxy(node.EndPoint))
                             {
@@ -138,7 +165,8 @@ namespace DuoVia.MpiVisor.Server
                                 { 
                                     EndPoint = _selfEndpoint, 
                                     ProcessorCount = (ushort)Environment.ProcessorCount, 
-                                    MachineName = Environment.MachineName 
+                                    MachineName = Environment.MachineName,
+                                    IsActive = true
                                 });
                             }
                         }
@@ -219,7 +247,7 @@ namespace DuoVia.MpiVisor.Server
                 //on same node, so no relay required
                 try
                 {
-                    using (var agentProxy = new AgentServiceProxy(new NpEndPoint(toAgentName)))
+                    using (var agentProxy = new AgentServiceProxy(new NpEndPoint(toAgentName, 2500)))
                     {
                         agentProxy.Send(message);
                     }
@@ -260,12 +288,13 @@ namespace DuoVia.MpiVisor.Server
             //so deliver to local agents only, else send to all nodes
             if (agentPortfolio.LocalAgentIds.Contains(message.FromId))
             {
-                lock (_runningClusterServers)
+                lock (_clusterServerConfig)
                 {
                     //has not been relayed - send to all nodes except this one
-                    foreach (var clusterServer in _runningClusterServers)
+                    foreach (var clusterServer in _clusterServerConfig.ClusterServers)
                     {
-                        if (!IPEndPoint.Equals(clusterServer.EndPoint, _selfEndpoint))
+                        //do not send to self and send only to active nodes
+                        if (!IPEndPoint.Equals(clusterServer.EndPoint, _selfEndpoint) && clusterServer.IsActive)
                         {
                             try
                             {
@@ -289,7 +318,7 @@ namespace DuoVia.MpiVisor.Server
                     try
                     {
                         var agentName = GetAgentName(agentId, message.SessionId);
-                        using (var agentProxy = new AgentServiceProxy(new NpEndPoint(agentName)))
+                        using (var agentProxy = new AgentServiceProxy(new NpEndPoint(agentName, 2500)))
                         {
                             agentProxy.Send(message);
                         }
@@ -320,11 +349,9 @@ namespace DuoVia.MpiVisor.Server
                 SpawnRequest request = null;
                 lock (_spawnRequestBuffer)
                 {
-                    LinkedListNode<SpawnRequest> firstRequest = _spawnRequestBuffer.First;
-                    if (firstRequest != null)
+                    if (_spawnRequestBuffer.Count > 0)
                     {
-                        request = firstRequest.Value;
-                        _spawnRequestBuffer.RemoveFirst();
+                        request = _spawnRequestBuffer.Dequeue();
                     }
                     else
                     {
@@ -416,7 +443,7 @@ namespace DuoVia.MpiVisor.Server
             }
             else
             {
-                using (var agentProxy = new AgentServiceProxy(new NpEndPoint(agentPortfolio.LocalProcessAgentName)))
+                using (var agentProxy = new AgentServiceProxy(new NpEndPoint(agentPortfolio.LocalProcessAgentName, 2500)))
                 {
                     agentProxy.Spawn(agentId, request.AgentExecutableName, request.Args);
                 }
@@ -426,17 +453,18 @@ namespace DuoVia.MpiVisor.Server
         private void BroadcastSpawnRegisterAgentMessages(ushort agentId, SessionInfo sessionInfo)
         {
             //registered local node in lock, now send message to all
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
                 List<Task> tasks = new List<Task>();
-                foreach (var node in _runningClusterServers)
+                foreach (var node in _clusterServerConfig.ClusterServers)
                 {
                     ClusterServerInfo nodeInstance = node;
                     var task = Task.Factory.StartNew(() =>
                     {
                         try
                         {
-                            if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint)) //do not send to self
+                            //do not send to self and send only to active nodes
+                            if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint) && nodeInstance.IsActive)
                             {
                                 using (var proxy = new ClusterServiceProxy(nodeInstance.EndPoint))
                                 {
@@ -466,13 +494,14 @@ namespace DuoVia.MpiVisor.Server
         private void BroadcastDirectedSpawnRequestsByStrategy(SpawnRequest request)
         {
             //one directed request per cluster node sent for strategic spawning
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
                 ushort offsetIncrement = 0;
-                foreach (var node in _runningClusterServers)
+                foreach (var node in _clusterServerConfig.ClusterServers)
                 {
+                    if (!node.IsActive) continue; //skip inactive nodes
                     int agentsPerNode = 1;
-                    //only strategy levels 1 and 2 are supported at this time
+                    //strategy levels 1 thru 6 are supported at this time
                     switch(request.Strategy)
                     {
                         case 1:
@@ -545,28 +574,22 @@ namespace DuoVia.MpiVisor.Server
         private void BroadcastDirectedSpawnRequestsByAgentCount(SpawnRequest request)
         {
             //copy package to every registered node and spawn directed requests
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
                 //now send Visor directive to spawn locally using simple round robin
                 int clusterIndex = 0;
 
                 //if more than one cluster server, begin with one that is next in line from this._selfEndpoint
-                if (_runningClusterServers.Count > 1)
+                var firstNotSelfIsActive = (from n in _clusterServerConfig.ClusterServers
+                                            where n.IsActive && !IPEndPoint.Equals(_selfEndpoint, n.EndPoint)
+                                            select n).FirstOrDefault();
+                if (null == firstNotSelfIsActive) //if all others are inactive, start with self
                 {
-                    bool takeNext = false;
-                    for (int i = 0; i < _runningClusterServers.Count; i++)
-                    {
-                        if (takeNext)
-                        {
-                            clusterIndex = i;
-                            break;
-                        }
-                        if (IPEndPoint.Equals(_selfEndpoint, _runningClusterServers[i].EndPoint))
-                        {
-                            takeNext = true; //if it is the last, then nothing is set and we start with 0
-                        }
-                    }
+                    firstNotSelfIsActive = (from n in _clusterServerConfig.ClusterServers
+                                            where n.IsActive
+                                            select n).FirstOrDefault();
                 }
+                clusterIndex = (null != firstNotSelfIsActive) ? _clusterServerConfig.ClusterServers.IndexOf(firstNotSelfIsActive) : 0;
 
                 var hasSentToClusterOnce = new List<int>();
                 for (ushort i = 0; i < request.Count; i++)
@@ -586,7 +609,7 @@ namespace DuoVia.MpiVisor.Server
                     //send this to clusterIndex
                     try
                     {
-                        using (var proxy = new ClusterServiceProxy(_runningClusterServers[clusterIndex].EndPoint))
+                        using (var proxy = new ClusterServiceProxy(_clusterServerConfig.ClusterServers[clusterIndex].EndPoint))
                         {
                             proxy.DirectedSpawnRequest(directedSpawnRequest);
                             if (!hasSentToClusterOnce.Contains(clusterIndex))
@@ -600,8 +623,21 @@ namespace DuoVia.MpiVisor.Server
                     {
                         Log.Error("send spawn request failed: {0}", e);
                     }
-                    clusterIndex++;
-                    if (clusterIndex == _runningClusterServers.Count) clusterIndex = 0; //roll over
+                    //find next index for active node
+                    bool hasRolledOnce = false;
+                    while (true)
+                    {
+                        clusterIndex++;
+                        if (clusterIndex == _clusterServerConfig.ClusterServers.Count)
+                        {
+                            if (hasRolledOnce) break; //escape -- all inactive (review)
+                            clusterIndex = 0; //roll over
+                            hasRolledOnce = true;
+                        }
+
+                        //if found an active node, break out of loop
+                        if (_clusterServerConfig.ClusterServers[clusterIndex].IsActive) break;
+                    }
                 }
             }
         }
@@ -651,12 +687,13 @@ namespace DuoVia.MpiVisor.Server
 
         private void BroadcastUnRegisterLocalAgentNotifications(Guid sessionId, ushort agentId)
         {
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
-                foreach (var node in _runningClusterServers)
+                foreach (var node in _clusterServerConfig.ClusterServers)
                 {
                     var nodeInstance = node;
-                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint)) //do not send to self
+                    //do not send to self and send only to active nodes
+                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint) && nodeInstance.IsActive)
                     {
                         Task.Factory.StartNew(() =>
                         {
@@ -699,12 +736,13 @@ namespace DuoVia.MpiVisor.Server
 
         private void SendRegisterMasterAgentNotifications(SessionInfo sessionInfo)
         {
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
-                foreach (var node in _runningClusterServers)
+                foreach (var node in _clusterServerConfig.ClusterServers)
                 {
                     var nodeInstance = node;
-                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint)) //do not send to self
+                    //do not send to self and send only to active nodes
+                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint) && nodeInstance.IsActive)
                     {
                         Task.Factory.StartNew(() =>
                         {
@@ -728,12 +766,13 @@ namespace DuoVia.MpiVisor.Server
         public void KillSession(Guid sessionId)
         {
             //send message to all running cluster servers to kill session
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
-                foreach (var node in _runningClusterServers)
+                foreach (var node in _clusterServerConfig.ClusterServers)
                 {
                     var nodeInstance = node;
-                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint)) //do not send to self
+                    //do not send to self and send only to active nodes
+                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint) && nodeInstance.IsActive)
                     {
                         Task.Factory.StartNew(() =>
                         {
@@ -818,7 +857,7 @@ namespace DuoVia.MpiVisor.Server
             {
                 if (_continueProcessing)
                 {
-                    _spawnRequestBuffer.AddLast(request);
+                    _spawnRequestBuffer.Enqueue(request);
                     _spawningWaitHandle.Set();
                 }
             }
@@ -826,25 +865,44 @@ namespace DuoVia.MpiVisor.Server
 
         public void RegisterClusterNode(ClusterServerInfo info)
         {
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
-                if (!_runningClusterServers.Contains(info)) _runningClusterServers.Add(info);
+                var index = _clusterServerConfig.ClusterServers.IndexOf(info);
+                if (index > -1)
+                {
+                    _clusterServerConfig.ClusterServers[index] = info;
+                }
+                else
+                {
+                    _clusterServerConfig.ClusterServers.Add(info);
+                }
+                _clusterServerConfig.Save(); //persist to disk
             }
         }
 
         public void UnRegisterClusterNode(ClusterServerInfo info)
         {
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
-                if (_runningClusterServers.Contains(info)) _runningClusterServers.Remove(info);
+                info.IsActive = false; //assure we are setting to inactive
+                var index = _clusterServerConfig.ClusterServers.IndexOf(info);
+                if (index > -1)
+                {
+                    _clusterServerConfig.ClusterServers[index] = info;
+                }
+                else
+                {
+                    _clusterServerConfig.ClusterServers.Add(info);
+                }
+                _clusterServerConfig.Save(); //persist to disk
             }
         }
 
         public ClusterServerInfo[] GetRegisteredClusterNodes()
         {
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
-                return _runningClusterServers.ToArray();
+                return _clusterServerConfig.ClusterServers.ToArray();
             }
         }
 
@@ -856,29 +914,42 @@ namespace DuoVia.MpiVisor.Server
         private void UnRegister()
         {
             //unregister this node with all others
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
                 var self = new ClusterServerInfo 
                     { 
                         EndPoint = _selfEndpoint, 
                         ProcessorCount = (ushort)Environment.ProcessorCount, 
-                        MachineName = Environment.MachineName 
+                        MachineName = Environment.MachineName,
+                        IsActive = false
                     };
-                if (_runningClusterServers.Contains(self)) _runningClusterServers.Remove(self);
-                foreach (var node in _runningClusterServers)
+                var index = _clusterServerConfig.ClusterServers.IndexOf(self);
+                if (index > -1)
+                {
+                    _clusterServerConfig.ClusterServers[index] = self;
+                }
+                else
+                {
+                    _clusterServerConfig.ClusterServers.Add(self);
+                }
+                _clusterServerConfig.Save(); //persist to disk
+                var tasks = new List<Task>();
+                foreach (var node in _clusterServerConfig.ClusterServers)
                 {
                     var nodeInstance = node;
-                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint)) //do not send to self
+                    //do not send to self and send only to active nodes
+                    if (!IPEndPoint.Equals(nodeInstance.EndPoint, _selfEndpoint) && nodeInstance.IsActive)
                     {
-                        UnRegisterInternal(nodeInstance);
+                        tasks.Add(UnRegisterInternal(nodeInstance));
                     }
                 }
+                if (tasks.Count > 0) Task.WaitAll(tasks.ToArray());
             }
         }
 
-        private void UnRegisterInternal(ClusterServerInfo node)
+        private Task UnRegisterInternal(ClusterServerInfo node)
         {
-            Task.Factory.StartNew(() =>
+            return Task.Factory.StartNew(() =>
             {
                 try
                 {
@@ -886,7 +957,8 @@ namespace DuoVia.MpiVisor.Server
                         { 
                             EndPoint = _selfEndpoint, 
                             ProcessorCount = (ushort)Environment.ProcessorCount, 
-                            MachineName = Environment.MachineName 
+                            MachineName = Environment.MachineName,
+                            IsActive = false
                         };
                     using (var proxy = new ClusterServiceProxy(node.EndPoint))
                     {
@@ -905,12 +977,12 @@ namespace DuoVia.MpiVisor.Server
             //private List<ClusterServerInfo> _runningClusterServers = new List<ClusterServerInfo>();
             //private Dictionary<Guid, AgentPortfolio> _agentPortfolios = new Dictionary<Guid, AgentPortfolio>();
             var result = new ManagementInfo();
-            lock (_runningClusterServers)
+            lock (_clusterServerConfig)
             {
                 var nodeList = new List<NodeInfo>();
-                foreach (var item in _runningClusterServers)
+                foreach (var item in _clusterServerConfig.ClusterServers)
                 {
-                    nodeList.Add(new NodeInfo() { EndPoint = item.EndPoint, MachineName = item.MachineName, ProcessorCount = item.ProcessorCount });
+                    nodeList.Add(new NodeInfo() { EndPoint = item.EndPoint, MachineName = item.MachineName, ProcessorCount = item.ProcessorCount, IsActive = item.IsActive });
                 }
                 result.Nodes = nodeList.ToArray();
             }

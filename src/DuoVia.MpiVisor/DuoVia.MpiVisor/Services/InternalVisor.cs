@@ -77,17 +77,27 @@ namespace DuoVia.MpiVisor.Services
                         try
                         {
                             var agentName = GetAgentName(agentId, message.SessionId);
-                            using (var proxy = new AgentServiceProxy(new NpEndPoint(agentName, 500)))
+                            using (var proxy = new AgentServiceProxy(new NpEndPoint(agentName, 2500)))
                             {
                                 proxy.Send(message);
                             }
                         }
                         catch (Exception ex)
                         {
+                            SendFailedDeliveryMessage(message);
                             Log.Error("message send error: {0}", ex);
                         }
                     }
                 }
+            }
+        }
+
+        private void SendFailedDeliveryMessage(Message originalMessage)
+        {
+            if (originalMessage.MessageType != SystemMessageTypes.DeliveryFailure)
+            {
+                //reverse direction of original message - from is to and to is from
+                Send(new Message(originalMessage.SessionId, originalMessage.ToId, originalMessage.FromId, SystemMessageTypes.DeliveryFailure, originalMessage));
             }
         }
 

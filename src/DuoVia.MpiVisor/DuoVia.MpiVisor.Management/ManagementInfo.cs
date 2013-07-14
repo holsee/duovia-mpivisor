@@ -19,6 +19,7 @@ namespace DuoVia.MpiVisor.Management
         public IPEndPoint EndPoint { get; set; }
         public ushort ProcessorCount { get; set; }
         public string MachineName { get; set; }
+        public bool IsActive { get; set; }
     }
 
     [Serializable]
