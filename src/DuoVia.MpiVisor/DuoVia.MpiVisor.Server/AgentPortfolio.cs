@@ -16,6 +16,7 @@ namespace DuoVia.MpiVisor.Server
         }
         public SessionInfo Session { get; set; }
         public Process LocalProcess { get; set; }
+        public ushort LocalProcessAgentId { get; set; }
         public string LocalProcessAgentName { get; set; }
         public List<ushort> LocalAgentIds { get; set; }
         public Dictionary<ushort, AgentEndPoint> Agents { get; set; }

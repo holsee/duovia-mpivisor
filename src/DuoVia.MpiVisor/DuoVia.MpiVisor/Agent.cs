@@ -195,11 +195,17 @@ namespace DuoVia.MpiVisor
             //sent stopped message to master if this agent is not the master
             if (AgentId != MpiConsts.MasterAgentId)
             {
+                //send stopped message to master
                 _messageQueue.Send(new Message(Session.SessionId, AgentId, MpiConsts.MasterAgentId, SystemMessageTypes.Stopped, null));
-            }
 
-            //notify node server this agent is gone
-            _nodeServiceProxy.UnRegisterAgent(Session.SessionId, AgentId); 
+                //notify node server this agent is no longer available
+                _nodeServiceProxy.UnRegisterAgent(Session.SessionId, AgentId);
+            }
+            else
+            {
+                //is master, so shut it all down and dispose of processes, etc.
+                this.KillSession(); 
+            }
 
             //dispose and close other resources
             _messageQueue.Dispose();
