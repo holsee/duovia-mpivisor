@@ -8,6 +8,8 @@ Get the "agent" client library via [NuGet][1]. To run across multiple cluster no
 Write a simple console app and debug it in Visual Studio as if it were runnning across multiple MpiVisor cluster server nodes. Add break points to your code for the master and the spawned agent code. 
 Once you have your code running locally, flip the switch and you'll be running it across as many servers as you have with as many instances as you want.
 
+- See [version 1.1.0 release notes][7].
+
 #### CONTRIBUTE
 
 We hope you will use and help improve this library. We take pull requests!
@@ -37,4 +39,4 @@ limitations under the License.
 [4]: https://www.hipchat.com/gHWO84CXp     "Hip Chat"
 [5]: http://nvie.com/posts/a-successful-git-branching-model/   "Vincent Driessen's model"
 [6]: http://semver.org/      "Semantic Versioning 2.0.0-rc.2"
-
+[7]: https://github.com/duovia/duovia-mpivisor/wiki   "version 1.1.0 release notes"
