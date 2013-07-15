@@ -72,30 +72,5 @@ namespace DuoVia.MpiVisor.Server
         {
             return ServerVisor.Current.GetRunningAgents(sessionId);
         }
-
-        #region IDisposable members
-
-        private bool _disposed = false;
-
-        public void Dispose()
-        {
-            //MS recommended dispose pattern - prevents GC from disposing again
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                _disposed = true; //prevent second call to Dispose
-                if (disposing)
-                {
-                }
-            }
-        }
-
-        #endregion
-
     }
 }

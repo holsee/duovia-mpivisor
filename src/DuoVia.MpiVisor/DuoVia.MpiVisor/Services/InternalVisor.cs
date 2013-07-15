@@ -263,20 +263,7 @@ namespace DuoVia.MpiVisor.Services
 
         public void KillSession(Guid sessionId)
         {
-            lock (_agentProfiles)
-            {
-                foreach (var agent in _agentProfiles)
-                {
-                    try
-                    {
-                        AppDomain.Unload(agent.Value.Domain);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error("agent kill local {0}", e);
-                    }
-                }
-            }
+            //internally not required - all app domains unloaded upon exit
             _continueSendingMessages = false;
         }
 
