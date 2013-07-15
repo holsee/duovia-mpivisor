@@ -68,9 +68,9 @@ namespace DuoVia.MpiVisor.Server
                 {
                     //clean up
                     ServerVisor.Current.Dispose();
-                    _nodeServiceHost.Close();
-                    _clusterServiceHost.Close();
-                    if (null != _managementServiceHost) _managementServiceHost.Close();
+                    _nodeServiceHost.Dispose();
+                    _clusterServiceHost.Dispose();
+                    if (null != _managementServiceHost) _managementServiceHost.Dispose();
                 }
                 catch (Exception e)
                 {

@@ -13,7 +13,7 @@ namespace DuoVia.MpiVisor.Services
     /// <summary>
     /// Singleton provides Visor function for self contained internal node service.
     /// </summary>
-    public sealed class InternalVisor : IDisposable
+    public class InternalVisor : IDisposable
     {
         private static readonly InternalVisor _current = new InternalVisor();
         private ManualResetEvent _outgoingMessageWaitHandle = new ManualResetEvent(false);
@@ -288,10 +288,30 @@ namespace DuoVia.MpiVisor.Services
             }
         }
 
+        #region IDisposable members
+
+        private bool _disposed = false;
+
         public void Dispose()
         {
-            _continueSendingMessages = false;
-            _outgoingMessageWaitHandle.Dispose();
+            //MS recommended dispose pattern - prevents GC from disposing again
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                _disposed = true; //prevent second call to Dispose
+                if (disposing)
+                {
+                    _continueSendingMessages = false;
+                    _outgoingMessageWaitHandle.Dispose();
+                }
+            }
+        }
+
+        #endregion
     }
 }

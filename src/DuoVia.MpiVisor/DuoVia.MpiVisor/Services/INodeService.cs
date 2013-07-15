@@ -13,7 +13,7 @@ namespace DuoVia.MpiVisor.Services
     /// <summary>
     /// Local interface to node service for agent talking to node server or internal service.
     /// </summary>
-    public interface INodeService
+    public interface INodeService : IDisposable
     {
         int Ping(int echo);
         void Spawn(SessionInfo sessionInfo, ushort count, string agentExecutableName, byte[] package, string[] args);

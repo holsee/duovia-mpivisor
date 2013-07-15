@@ -11,7 +11,7 @@ using System.Diagnostics;
 
 namespace DuoVia.MpiVisor
 {
-    public sealed class Agent : IDisposable
+    public class Agent : IDisposable
     {
         //singleton instance
         private static Agent _current = null;
@@ -37,9 +37,6 @@ namespace DuoVia.MpiVisor
 
         //message queue dependency
         IMessageQueue _messageQueue = null;
-
-        //used to prevent execution of Dispose code twice which would throw an exception
-        private bool isDisposed = false;
 
         //determines how long a primary agent (the process) will wait for a child agent (app domain)
         //to complete and dispose before completing the dispose of the primary agent
@@ -172,46 +169,75 @@ namespace DuoVia.MpiVisor
             _nodeServiceProxy.KillSession(Session.SessionId);
         }
 
+        #region IDisposable members
+
+        private bool _disposed = false;
+
+        public void Dispose()
+        {
+            //MS recommended dispose pattern - prevents GC from disposing again
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
         /// <summary>
         /// Dispose of resources and send proper message. 
         /// Spawned agent process will wait for child agents before cleaning up.
         /// </summary>
-        public void Dispose()
+        protected virtual void Dispose(bool disposing)
         {
-            //prevent dispose being called twice
-            isDisposed = true;
-
-            //tell message receiving thread to ignore any incoming messages
-            _messageQueue.AllowMessageEnqueing = false;
-
-            //wait for child agents to end - needed when agents are spawned as app domain from remote primary process agent
-            var disposeStarted = DateTime.Now;
-            while ((DateTime.Now - disposeStarted).TotalMinutes < maxMinutesWaitForChildAgentCompletion 
-                && _agentService.GetChildAgentCount() > 0)
+            if (!_disposed)
             {
-                System.Threading.Thread.Sleep(50);
-            }
+                _disposed = true; //prevent second call to Dispose
+                if (disposing)
+                {
+                    try
+                    {
+                        //tell message receiving thread to ignore any incoming messages
+                        _messageQueue.AllowMessageEnqueing = false;
 
-            //sent stopped message to master if this agent is not the master
-            if (AgentId != MpiConsts.MasterAgentId)
-            {
-                //send stopped message to master
-                _messageQueue.Send(new Message(Session.SessionId, AgentId, MpiConsts.MasterAgentId, SystemMessageTypes.Stopped, null));
+                        //wait for child agents to end - needed when agents are spawned as app domain from remote primary process agent
+                        var disposeStarted = DateTime.Now;
+                        while ((DateTime.Now - disposeStarted).TotalMinutes < maxMinutesWaitForChildAgentCompletion
+                            && _agentService.GetChildAgentCount() > 0)
+                        {
+                            System.Threading.Thread.Sleep(50);
+                        }
 
-                //notify node server this agent is no longer available
-                _nodeServiceProxy.UnRegisterAgent(Session.SessionId, AgentId);
-            }
-            else
-            {
-                //is master, so shut it all down and dispose of processes, etc.
-                this.KillSession(); 
-            }
+                        //sent stopped message to master if this agent is not the master
+                        if (AgentId != MpiConsts.MasterAgentId)
+                        {
+                            //send stopped message to master
+                            _messageQueue.Send(new Message(Session.SessionId, AgentId, MpiConsts.MasterAgentId, SystemMessageTypes.Stopped, null));
 
-            //dispose and close other resources
-            _messageQueue.Dispose();
-            _nodeServiceFactory.Dispose();
-            if (null != _agentServiceHost) _agentServiceHost.Close();
-            Log.Close();
+                            //notify node server this agent is no longer available
+                            _nodeServiceProxy.UnRegisterAgent(Session.SessionId, AgentId);
+                        }
+                        else
+                        {
+                            //is master, so shut it all down and dispose of processes, etc.
+                            this.KillSession();
+                        }
+
+                        //dispose and close other resources
+                        _messageQueue.Dispose();
+                        _nodeServiceFactory.Dispose();
+                        if (null != _agentServiceHost) _agentServiceHost.Dispose();
+
+                    }
+                    catch(Exception e)
+                    {
+                        Log.Error("dispose error {0}", e);
+                    }
+                    finally
+                    {
+                        Log.Close();
+                    }
+                }
+            }
         }
+
+        #endregion
+
     }
 }
