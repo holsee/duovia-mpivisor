@@ -13,7 +13,7 @@ namespace DuoVia.MpiVisor.Services
     /// <summary>
     /// Internal self contained node service for agent use.
     /// </summary>
-    public sealed class InternalNodeService : INodeService, IDisposable
+    public class InternalNodeService : INodeService
     {
         public int Ping(int echo)
         {
@@ -60,9 +60,29 @@ namespace DuoVia.MpiVisor.Services
             return InternalVisor.Current.GetRunningAgents(sessionId);
         }
 
+        #region IDisposable members
+
+        private bool _disposed = false;
+
         public void Dispose()
         {
-            InternalVisor.Current.Dispose();
+            //MS recommended dispose pattern - prevents GC from disposing again
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                _disposed = true; //prevent second call to Dispose
+                if (disposing)
+                {
+                    InternalVisor.Current.Dispose();
+                }
+            }
+        }
+
+        #endregion
     }
 }

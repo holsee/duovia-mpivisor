@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace DuoVia.MpiVisor.Server
 {
-    internal sealed class ServerVisor : IDisposable
+    internal class ServerVisor : IDisposable
     {
         //singleton instance
         private static readonly ServerVisor _current = new ServerVisor();
@@ -94,10 +94,9 @@ namespace DuoVia.MpiVisor.Server
                             }
                             break;
                         }
-                        catch (Exception e)
+                        catch
                         {
-                            //skip logging - means cannot connect to node - try next one
-                            //Log.Error("error on proxy: {0}", e);
+                            //rare case where buring failure is acceptable
                         }
                     }
                 }
@@ -1009,13 +1008,39 @@ namespace DuoVia.MpiVisor.Server
             return result;
         }
 
+        #region IDisposable members
+
+        private bool _disposed = false;
 
         public void Dispose()
         {
-            _continueProcessing = false;
-            UnRegister();
-            _outgoingMessageWaitHandle.Close();
-            _spawningWaitHandle.Close();
+            //MS recommended dispose pattern - prevents GC from disposing again
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                _disposed = true; //prevent second call to Dispose
+                if (disposing)
+                {
+                    try
+                    {
+                        _continueProcessing = false;
+                        UnRegister();
+                        _outgoingMessageWaitHandle.Close();
+                        _spawningWaitHandle.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error("ServerVisor dispose error {0}", e);
+                    }
+                }
+            }
+        }
+
+        #endregion
     }
 }

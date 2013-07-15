@@ -15,7 +15,7 @@ namespace DuoVia.MpiVisor.Services
     /// <summary>
     /// Factory creates node service proxy either internal or cluster node connected.
     /// </summary>
-    internal sealed class NodeServiceFactory : INodeServiceFactory
+    internal class NodeServiceFactory : INodeServiceFactory
     {
         private InternalNodeService _localServerService = null;
         private NodeServiceProxy _svrProxy = null;
@@ -56,10 +56,30 @@ namespace DuoVia.MpiVisor.Services
             return _svrProxy;
         }
 
+        #region IDisposable members
+
+        private bool _disposed = false;
+
         public void Dispose()
         {
-            if (null != _svrProxy) _svrProxy.Dispose();
-            if (null != _localServerServiceHost) _localServerServiceHost.Close();
+            //MS recommended dispose pattern - prevents GC from disposing again
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                _disposed = true; //prevent second call to Dispose
+                if (disposing)
+                {
+                    if (null != _svrProxy) _svrProxy.Dispose();
+                    if (null != _localServerServiceHost) _localServerServiceHost.Dispose();
+                }
+            }
+        }
+
+        #endregion
     }
 }
