@@ -24,7 +24,7 @@ namespace DuoVia.MpiVisor.Services
         private InternalVisor()
         {
             //start SendMessages task
-            Task.Factory.StartNew(() => SendMessages(), TaskCreationOptions.LongRunning);
+            Task.Factory.StartNew(() => SendMessages());
         }
 
         public static InternalVisor Current
@@ -196,7 +196,7 @@ namespace DuoVia.MpiVisor.Services
                                             Content = tx.ToString()
                                         });
                                     }
-                                }, TaskCreationOptions.LongRunning);
+                                });
                                 _agentProfiles.Add(agentId, new InternalAgentProfile(agentId) 
                                 { 
                                     Domain = domain
@@ -208,8 +208,7 @@ namespace DuoVia.MpiVisor.Services
                             }
                         }
                     }
-                }
-                , TaskCreationOptions.LongRunning);
+                });
         }
 
         private string GetAgentName(ushort agentId, Guid sessionId)

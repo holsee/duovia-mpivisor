@@ -91,7 +91,7 @@ namespace DuoVia.MpiVisor.Services
                                     Content = tx.ToString()
                                 });
                             }
-                        }, TaskCreationOptions.LongRunning);
+                        });
                     _runningAgentTasks.Add(task);
                 }
                 catch (Exception e)

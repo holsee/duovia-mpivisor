@@ -53,10 +53,10 @@ namespace DuoVia.MpiVisor.Server
             Directory.CreateDirectory(_appsRootDir);
 
             //start SendMessages task
-            Task.Factory.StartNew(() => SendMessages(), TaskCreationOptions.LongRunning);
+            Task.Factory.StartNew(() => SendMessages());
 
             //start Spawning task
-            Task.Factory.StartNew(() => SpawnAgents(), TaskCreationOptions.LongRunning);
+            Task.Factory.StartNew(() => SpawnAgents());
         }
 
         public static ServerVisor Current { get { return _current; } }
@@ -473,7 +473,7 @@ namespace DuoVia.MpiVisor.Server
                         {
                             Log.Error("register master agent: {0}", e);
                         }
-                    }, TaskCreationOptions.LongRunning);
+                    });
                     tasks.Add(task);
                 }
                 Task.WaitAll(tasks.ToArray(), 600000); //wait up to ten minutes
@@ -705,7 +705,7 @@ namespace DuoVia.MpiVisor.Server
                             {
                                 Log.Error("proxy UnRegisterAgent: {0}", e);
                             }
-                        }, TaskCreationOptions.LongRunning);
+                        });
                     }
                 }
             }
@@ -754,7 +754,7 @@ namespace DuoVia.MpiVisor.Server
                             {
                                 Log.Error("register master agent: {0}", e);
                             }
-                        }, TaskCreationOptions.LongRunning);
+                        });
                     }
                 }
             }
@@ -784,7 +784,7 @@ namespace DuoVia.MpiVisor.Server
                             {
                                 Log.Error("proxy kill session: {0}", e);
                             }
-                        }, TaskCreationOptions.LongRunning);
+                        });
                     }
                 }
             }
@@ -966,7 +966,7 @@ namespace DuoVia.MpiVisor.Server
                 {
                     Log.Error("unregister agent: {0}", e);
                 }
-            }, TaskCreationOptions.LongRunning);
+            });
         }
 
         public ManagementInfo GetManagementInfo()
