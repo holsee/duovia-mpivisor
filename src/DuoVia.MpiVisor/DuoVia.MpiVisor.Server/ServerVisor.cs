@@ -29,11 +29,9 @@ namespace DuoVia.MpiVisor.Server
 
         private ManualResetEvent _outgoingMessageWaitHandle = new ManualResetEvent(false);
         private Queue<Message> _outgoingMessageBuffer = new Queue<Message>();
-        private Thread _sendMessagesThread = null;
 
         private ManualResetEvent _spawningWaitHandle = new ManualResetEvent(false);
         private Queue<SpawnRequest> _spawnRequestBuffer = new Queue<SpawnRequest>();
-        private Thread _spawningThread = null;
 
         public IPEndPoint EndPoint { get { return _selfEndpoint; } }
 
@@ -54,14 +52,11 @@ namespace DuoVia.MpiVisor.Server
                 _appsRootDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "apps");
             Directory.CreateDirectory(_appsRootDir);
 
-            //start SendMessages thread
-            _sendMessagesThread = new Thread(SendMessages);
-            _sendMessagesThread.IsBackground = true;
-            _sendMessagesThread.Start();
+            //start SendMessages task
+            Task.Factory.StartNew(() => SendMessages(), TaskCreationOptions.LongRunning);
 
-            _spawningThread = new Thread(SpawnAgents);
-            _spawningThread.IsBackground = true;
-            _spawningThread.Start();
+            //start Spawning task
+            Task.Factory.StartNew(() => SpawnAgents(), TaskCreationOptions.LongRunning);
         }
 
         public static ServerVisor Current { get { return _current; } }
@@ -198,7 +193,7 @@ namespace DuoVia.MpiVisor.Server
             return new IPEndPoint(IPAddress.Parse(parts[0]), int.Parse(parts[1]));
         }
 
-        private void SendMessages(object state)
+        private void SendMessages()
         {
             while (_continueProcessing)
             {
@@ -340,7 +335,7 @@ namespace DuoVia.MpiVisor.Server
             }
         }
 
-        private void SpawnAgents(object state)
+        private void SpawnAgents()
         {
             while (_continueProcessing)
             {

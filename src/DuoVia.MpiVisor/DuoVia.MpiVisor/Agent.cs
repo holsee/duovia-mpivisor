@@ -193,7 +193,7 @@ namespace DuoVia.MpiVisor
                 {
                     try
                     {
-                        //tell message receiving thread to ignore any incoming messages
+                        //tell message receiving task to ignore any incoming messages
                         _messageQueue.AllowMessageEnqueing = false;
 
                         //wait for child agents to end - needed when agents are spawned as app domain from remote primary process agent

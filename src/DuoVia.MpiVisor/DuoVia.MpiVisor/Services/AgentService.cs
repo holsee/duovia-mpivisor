@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DuoVia.MpiVisor.Services
 {
@@ -24,13 +25,13 @@ namespace DuoVia.MpiVisor.Services
     /// </summary>
     public class AgentService : IAgentService
     {
-        private List<Thread> _runningAgentThreads = new List<Thread>();
+        private List<Task> _runningAgentTasks = new List<Task>();
 
         public int GetChildAgentCount()
         {
-            lock (_runningAgentThreads)
+            lock (_runningAgentTasks)
             {
-                var count = (from n in _runningAgentThreads where n.IsAlive select n).Count();
+                var count = (from n in _runningAgentTasks where n.IsAlive() select n).Count();
                 return count;
             }
         }
@@ -52,7 +53,7 @@ namespace DuoVia.MpiVisor.Services
 
         public void Spawn(ushort agentId, string agentExecutableName, string[] args)
         {
-            lock (_runningAgentThreads)
+            lock (_runningAgentTasks)
             {
                 try
                 {
@@ -71,8 +72,8 @@ namespace DuoVia.MpiVisor.Services
                     domain.SetData("SessionId", sessionId);
                     domain.SetData("AgentId", agentId);
 
-                    //execute agent on new thread
-                    var appDomainThread = new Thread(() =>
+                    //execute agent on new task
+                    var task = Task.Factory.StartNew(() =>
                         {
                             try
                             {
@@ -90,12 +91,8 @@ namespace DuoVia.MpiVisor.Services
                                     Content = tx.ToString()
                                 });
                             }
-                        })
-                    {
-                        IsBackground = true
-                    };
-                    appDomainThread.Start();
-                    _runningAgentThreads.Add(appDomainThread);
+                        }, TaskCreationOptions.LongRunning);
+                    _runningAgentTasks.Add(task);
                 }
                 catch (Exception e)
                 {
