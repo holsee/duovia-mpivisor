@@ -274,7 +274,6 @@ namespace DuoVia.MpiVisor.Services
             //MS recommended dispose pattern - prevents GC from disposing again
             Dispose(true);
             GC.SuppressFinalize(this);
-<<<<<<< HEAD
         }
 
         protected virtual void Dispose(bool disposing)
@@ -290,23 +289,6 @@ namespace DuoVia.MpiVisor.Services
             }
         }
 
-=======
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                _disposed = true; //prevent second call to Dispose
-                if (disposing)
-                {
-                    _continueSendingMessages = false;
-                    _outgoingMessageWaitHandle.Dispose();
-                }
-            }
-        }
-
->>>>>>> origin/dev
         #endregion
     }
 }

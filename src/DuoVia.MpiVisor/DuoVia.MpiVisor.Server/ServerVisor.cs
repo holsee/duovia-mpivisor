@@ -29,10 +29,6 @@ namespace DuoVia.MpiVisor.Server
 
         private ManualResetEvent _outgoingMessageWaitHandle = new ManualResetEvent(false);
         private Queue<Message> _outgoingMessageBuffer = new Queue<Message>();
-<<<<<<< HEAD
-        private Thread _sendMessagesThread = null;
-=======
->>>>>>> origin/dev
 
         private ManualResetEvent _spawningWaitHandle = new ManualResetEvent(false);
         private Queue<SpawnRequest> _spawnRequestBuffer = new Queue<SpawnRequest>();
