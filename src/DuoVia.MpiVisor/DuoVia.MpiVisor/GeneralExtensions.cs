@@ -4,11 +4,21 @@ using System.Linq;
 using System.Text;
 using System.Diagnostics;
 using System.Globalization;
+using System.Threading.Tasks;
 
 namespace DuoVia.MpiVisor
 {
     public static class GeneralExtensions
     {
+        public static bool IsAlive(this Task task)
+        {
+            return task.Status == TaskStatus.Running
+                || task.Status == TaskStatus.WaitingForActivation
+                || task.Status == TaskStatus.WaitingForChildrenToComplete
+                || task.Status == TaskStatus.WaitingToRun
+                || task.Status == TaskStatus.Created;
+        }
+
         public static void ProcessUnhandledException(this Exception ex, string appName)
         {
             //log to Windows EventLog

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DuoVia.MpiVisor.Services
 {
@@ -17,6 +18,5 @@ namespace DuoVia.MpiVisor.Services
         }
         public ushort AgentId { get; set; }
         public AppDomain Domain { get; set; }
-        public Thread Thread { get; set; }
     }
 }

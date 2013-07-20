@@ -40,6 +40,9 @@
     <Reference Include="DuoVia.Net, Version=1.1.2.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\DuoVia.Net.1.1.2\lib\net40\DuoVia.Net.dll</HintPath>
+    <Reference Include="DuoVia.Net, Version=1.1.4.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\DuoVia.Net.1.1.4\lib\net40\DuoVia.Net.dll</HintPath>
     </Reference>
     <Reference Include="FluentAssertions, Version=2.0.1.0, Culture=neutral, PublicKeyToken=33f2691a05b67b6a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>

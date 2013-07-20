@@ -70,8 +70,8 @@ namespace FindMyPrimes
 
             Log.LogType = LogType.Both;
 
-            //using (Visor.ConnectLocal(args))
-            using (Visor.ConnectDistributed(args))  // to run distributed across nodes
+            //using (Visor.ConnectDistributed(args))  // to run distributed across nodes
+            using (Visor.ConnectLocal(args))
             {
                 //demo how to inject visitor function to determine whether the receive message 
                 //method on MessageQueue should continue to block when no message is received after

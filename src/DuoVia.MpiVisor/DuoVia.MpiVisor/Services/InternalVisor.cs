@@ -18,16 +18,13 @@ namespace DuoVia.MpiVisor.Services
         private static readonly InternalVisor _current = new InternalVisor();
         private ManualResetEvent _outgoingMessageWaitHandle = new ManualResetEvent(false);
         private LinkedList<Message> _outgoingMessageBuffer = new LinkedList<Message>();
-        private Thread _sendMessagesThread = null;
         private bool _continueSendingMessages = true;
         private Dictionary<ushort, InternalAgentProfile> _agentProfiles = new Dictionary<ushort, InternalAgentProfile>();
 
         private InternalVisor()
         {
-            //start SendMessages thread
-            _sendMessagesThread = new Thread(SendMessages);
-            _sendMessagesThread.IsBackground = true;
-            _sendMessagesThread.Start();
+            //start SendMessages task
+            Task.Factory.StartNew(() => SendMessages());
         }
 
         public static InternalVisor Current
@@ -38,7 +35,7 @@ namespace DuoVia.MpiVisor.Services
             }
         }
 
-        private void SendMessages(object state)
+        private void SendMessages()
         {
             while (_continueSendingMessages)
             {
@@ -180,35 +177,30 @@ namespace DuoVia.MpiVisor.Services
                                 domain.SetData("SessionId", sessionInfo.SessionId);
                                 domain.SetData("AgentId", agentId);
 
-                                //execute agent on new thread
-                                var domainThread = new Thread(() =>
-                                    {
-                                        try
-                                        {
-                                            domain.ExecuteAssembly(assemblyLocation, args);
-                                        }
-                                        catch (Exception tx)
-                                        {
-                                            Log.Error("Agent {0} unhandled exception: {1}", agentId, tx);
-                                            this.Send(new Message
-                                            {
-                                                ToId = MpiConsts.MasterAgentId,
-                                                SessionId = sessionInfo.SessionId,
-                                                FromId = agentId,
-                                                MessageType = SystemMessageTypes.Aborted,
-                                                Content = tx.ToString()
-                                            });
-                                        }
-                                    })
+                                //execute agent on new task
+                                Task.Factory.StartNew(() =>
                                 {
-                                    IsBackground = true
-                                };
-                                domainThread.Start();
+                                    try
+                                    {
+                                        domain.ExecuteAssembly(assemblyLocation, args);
+                                    }
+                                    catch (Exception tx)
+                                    {
+                                        Log.Error("Agent {0} unhandled exception: {1}", agentId, tx);
+                                        this.Send(new Message
+                                        {
+                                            ToId = MpiConsts.MasterAgentId,
+                                            SessionId = sessionInfo.SessionId,
+                                            FromId = agentId,
+                                            MessageType = SystemMessageTypes.Aborted,
+                                            Content = tx.ToString()
+                                        });
+                                    }
+                                });
                                 _agentProfiles.Add(agentId, new InternalAgentProfile(agentId) 
-                                    { 
-                                        Domain = domain,
-                                        Thread = domainThread
-                                    });
+                                { 
+                                    Domain = domain
+                                });
                             }
                             catch (Exception ex)
                             {
@@ -216,8 +208,7 @@ namespace DuoVia.MpiVisor.Services
                             }
                         }
                     }
-                }
-                , TaskCreationOptions.LongRunning);
+                });
         }
 
         private string GetAgentName(ushort agentId, Guid sessionId)
@@ -246,10 +237,9 @@ namespace DuoVia.MpiVisor.Services
             lock (_agentProfiles)
             {
                 _agentProfiles.Add(MpiConsts.MasterAgentId, new InternalAgentProfile(MpiConsts.MasterAgentId)
-                    {
-                        Domain = AppDomain.CurrentDomain,
-                        Thread = Thread.CurrentThread
-                    });
+                {
+                    Domain = AppDomain.CurrentDomain
+                });
             }
         }
 
@@ -284,6 +274,7 @@ namespace DuoVia.MpiVisor.Services
             //MS recommended dispose pattern - prevents GC from disposing again
             Dispose(true);
             GC.SuppressFinalize(this);
+<<<<<<< HEAD
         }
 
         protected virtual void Dispose(bool disposing)
@@ -299,6 +290,23 @@ namespace DuoVia.MpiVisor.Services
             }
         }
 
+=======
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                _disposed = true; //prevent second call to Dispose
+                if (disposing)
+                {
+                    _continueSendingMessages = false;
+                    _outgoingMessageWaitHandle.Dispose();
+                }
+            }
+        }
+
+>>>>>>> origin/dev
         #endregion
     }
 }
