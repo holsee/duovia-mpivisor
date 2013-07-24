@@ -20,5 +20,10 @@ namespace DuoVia.MpiVisor.Management
         {
             Proxy.KillSession(sessionId);
         }
+
+        public string Run(string exePath, string args, string payload)
+        {
+            return Proxy.Run(exePath, args, payload);
+        }
     }
 }

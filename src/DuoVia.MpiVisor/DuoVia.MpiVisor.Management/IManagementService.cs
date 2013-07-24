@@ -9,5 +9,6 @@ namespace DuoVia.MpiVisor.Management
     {
         ManagementInfo GetInfo();
         void KillSession(Guid sessionId);
+        string Run(string exePath, string args, string payload);
     }
 }
