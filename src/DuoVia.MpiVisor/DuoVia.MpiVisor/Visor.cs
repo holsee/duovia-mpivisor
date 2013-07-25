@@ -76,6 +76,5 @@ namespace DuoVia.MpiVisor
         {
             return Connect(args, false, nodeServiceFactory, agentService, messageQueue, workerFactory);
         }
-
     }
 }

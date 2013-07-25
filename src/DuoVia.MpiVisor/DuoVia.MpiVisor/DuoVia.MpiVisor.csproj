@@ -48,6 +48,7 @@
     <Compile Include="Agent.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="MessageQueue.cs" />
+    <Compile Include="Payload.cs" />
     <Compile Include="WorkerFactory.cs" />
     <Compile Include="GeneralExtensions.cs" />
     <Compile Include="Log.cs" />
