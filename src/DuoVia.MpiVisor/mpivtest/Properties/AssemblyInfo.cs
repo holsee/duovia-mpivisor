@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("DuoViaTestAgent")]
-[assembly: AssemblyDescription("Distributed Parallel Computing for .NET Mortals.")]
+[assembly: AssemblyTitle("mpivtest")]
+[assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("DuoVia Inc.")]
-[assembly: AssemblyProduct("DuoViaTestAgent")]
+[assembly: AssemblyProduct("mpivtest")]
 [assembly: AssemblyCopyright("Copyright ©  2013")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("9322031d-ea72-41de-a1a3-a8aa6af3e3be")]
+[assembly: Guid("8d34a519-b4ee-42f0-957c-0f58ead46044")]
 
 // Version information for an assembly consists of the following four values:
 //

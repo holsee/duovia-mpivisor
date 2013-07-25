@@ -32,7 +32,7 @@ namespace mpiv
             }
         }
 
-        //args: Start-Job -f "c:\my app\hello.exe" -a "3542 125 clean" -n SOMESERVER:8089
+        //args: Start-Job -f "c:\my app\hello.exe" -a "3542 125 clean" -n 192.168.20.102:8089
         static void StartJob(Dictionary<string, string> arguments)
         {
             string exePath = arguments.ContainsKey("f") ? arguments["f"] : null;
@@ -45,7 +45,7 @@ namespace mpiv
             Console.WriteLine(result);
         }
 
-        //args: Kill-Session -s "72029ddb-638f-4226-99ce-9d13ed63e4da" -n SOMESERVER:8089
+        //args: Kill-Session -s "72029ddb-638f-4226-99ce-9d13ed63e4da" -n 192.168.20.102:8089
         static void KillSession(Dictionary<string, string> arguments)
         {
             var s = arguments.ContainsKey("s") ? arguments["s"] : null;
@@ -60,7 +60,7 @@ namespace mpiv
             Console.WriteLine("Kill message sent");
         }
 
-        //args: Get-Info -n SOMESERVER:8089
+        //args: Get-Info -n 192.168.20.102:8089
         static void GetInfo(Dictionary<string, string> arguments)
         {
             ManagementInfo info = null;
@@ -90,6 +90,7 @@ namespace mpiv
         {
             if (arguments.ContainsKey("n"))
             {
+                //TODO - make smarter and allow name and then get IP for name??
                 var vals = arguments["n"].Split(':');
                 if (vals.Length == 2)
                 {

@@ -41,7 +41,10 @@ namespace DuoVia.MpiVisor.Server
                         if (!string.IsNullOrWhiteSpace(payload)) info.EnvironmentVariables.Add("payload", payload);
                         Process.Start(info);
                     }
-                    catch { }
+                    catch (Exception e) 
+                    {
+                        System.Diagnostics.Debug.Write(e.ToString());
+                    }
                 });
             return string.Empty;
         }
