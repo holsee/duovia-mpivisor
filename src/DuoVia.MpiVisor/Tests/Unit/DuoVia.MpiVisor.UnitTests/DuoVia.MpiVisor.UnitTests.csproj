@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{ADDD0A5E-AC95-4810-8CAD-75558613D07A}</ProjectGuid>
+    <ProjectGuid>{E2166CA6-A359-4803-9F3F-AEAFD54DDF0A}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DuoVia.MpiVisor.Server.UnitTests</RootNamespace>
-    <AssemblyName>DuoVia.MpiVisor.Server.UnitTests</AssemblyName>
+    <RootNamespace>DuoVia.MpiVisor.UnitTests</RootNamespace>
+    <AssemblyName>DuoVia.MpiVisor.UnitTests</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
@@ -37,9 +37,6 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="DuoVia.Net">
-      <HintPath>..\packages\DuoVia.Net.1.1.5\lib\net40\DuoVia.Net.dll</HintPath>
-    </Reference>
     <Reference Include="FluentAssertions, Version=2.0.1.0, Culture=neutral, PublicKeyToken=33f2691a05b67b6a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\FluentAssertions.2.0.1\lib\net45\FluentAssertions.dll</HintPath>
@@ -54,21 +51,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ClusterServerConfigTests.cs" />
+    <Compile Include="MessageTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\DuoVia.MpiVisor.Server\DuoVia.MpiVisor.Server.csproj">
-      <Project>{6a9a6b50-f49e-4b72-a585-5c3a738aac39}</Project>
-      <Name>DuoVia.MpiVisor.Server</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\DuoVia.MpiVisor\DuoVia.MpiVisor.csproj">
-      <Project>{3aef1f93-3cbc-42c8-bcc5-6d9a56fcaf5d}</Project>
+    <ProjectReference Include="..\..\..\DuoVia.MpiVisor\DuoVia.MpiVisor.csproj">
+      <Project>{3AEF1F93-3CBC-42C8-BCC5-6D9A56FCAF5D}</Project>
       <Name>DuoVia.MpiVisor</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\nuget.targets" />
