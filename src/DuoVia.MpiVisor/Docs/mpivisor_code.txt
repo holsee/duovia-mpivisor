@@ -1,0 +1,607 @@
+Let's make some magic happen
+	problem that can be broken up into pieces
+		brute force find primes in a range
+			chunk the range
+			assign each chunk to a slave (map)
+			collect and present results (reduce)
+		contrived? yes - makes good example
+		add proof that ran on another machine - Environment.MachineName
+	show demo code and run it 
+		defining message types
+		splitting the master from the slave
+		on one machine in debug mode
+		on two machines
+		it's alive!
+
+1. Create console application
+2. Add DuoVia.MpiVisor NuGet package
+3. Add snippet of code:
+
+        static void Main(string[] args)
+        {
+        }
+
+4. Add dependency reference:
+
+	using DuoVia.MpiVisor;
+	
+5. Add using block to initialize agent context and assure args 
+   are passed to slave agents and that the context is disposed 
+   of properly when our code exits.
+
+			using (Visor.ConnectDistributed(args))  // to run distributed across nodes
+            {
+			}	
+
+6. Is this agent the master or a slave. Normally, I'd put a try catch in each of 
+   these and write separate classes for the master and slave responsibilities.
+
+			using (Visor.ConnectDistributed(args))  // to run distributed across nodes
+            {
+                if (Agent.Current.IsMaster)
+                {
+                }
+                else  //is not master, so do slave work
+                {
+				}
+			}	
+
+7. Be default, I only log to a file, but we want to see messages in the console.
+
+   (insert just above if (Agent.Current.IsMaster)
+
+				Log.LogType = LogType.Both;
+
+8. First thing to do in the master is spawn some worker agents (aka slaves).
+
+   (insert just after if (Agent.Current.IsMaster) -- if time allows, discuss other spawn strategies
+
+                    Agent.Current.WorkerFactory.SpawnOneWorkerAgentPerLogicalProcessor(args);
+
+   This will spin up new instances of this same console application locally in 
+   the same process as a new app domain or, if a cluster node is running locally, 
+   the cluster node will run a new instance on each node in a new process and then
+   one new instance per additional logical processor as a new app domain in that same process.
+   
+   This assures that the cluster node server can actually kill 
+   the slave processes should that become necessary.
+   
+   It also assures that when the slave node exits normally, the app domain will be 
+   unloaded when the primary process container exits.
+   
+   The slaves do not start up instantly, so we need a message from them when
+   they have started and are ready to take instructions from the master agent.
+   Fortunately, this message is automatically sent back to the master by the
+   framework once the slave is started.
+   
+9. So let's create our message handling loop in the master code block.
+   Note that messages arrive into a sink and are delivered to the Receive method
+   in the order in which they arrived. 
+   The Receive method is a partially blocking method. More on this later.
+   And we'll add a simple switch statement to handle our messages.   
+
+                    Message msg;
+                    do
+                    {
+                        msg = Agent.Current.MessageQueue.ReceiveAnyMessage();
+                        switch(msg.MessageType)
+						{
+						}
+					}
+					while (continueProcessing);
+
+10. We'll add a simple bool called continueProcessing which our message handling 
+	code can set to true to exit the master message loop and exit.
+
+	(insert just under static void Main(string[] args)
+	
+            var continueProcessing = true;
+            ushort agentsToSpawn = 12;
+
+            //needed to know when all agents have stopped - not MpiVisor required
+            ushort agentsShutdown = 0;
+            ushort agentsStarted = 0;  
+	
+	In fact, let's make this available to master and slave. (But not the same instance to both, remember.)
+	And with that flag, we'll add some config and state variables that we want to use later.
+	
+11. Now let's listen for the Started system message and a few others.
+
+                            case SystemMessageTypes.Started:
+                                // if we have work left to do, send a work request message
+								// and if not, tell this slave to shut down
+								break;
+
+12. Let's talk strategy. Our problem we want to solve is to find the 
+    most primes in the least time using a clumsy brute force algorithm
+    designed especially for this demo.
+	
+	(add outside of main)
+
+        //brute force prime finder - consumes more and more time
+        static PrimesResult CalculatePrimes(PrimesRequest request)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var primes = new List<long>();
+            for (long i = request.From; i < request.To + 1; i++)
+            {
+                var isPrime = true;
+                for (long j = 2; j < i; j++)
+                {
+                    if (i % j == 0)
+                    {
+                        isPrime = false;
+                        break;
+                    }
+                }
+                if (isPrime) primes.Add(i);
+            }
+            sw.Stop();
+            return new PrimesResult
+            {
+                From = request.From,
+                To = request.To,
+                TotalSeconds = sw.Elapsed.TotalSeconds, 
+                Primes = primes
+            };
+        }
+	
+   And we'll add some serializable message classes to help the 
+   compiler make sense of this code. We will not diverge into the weeds
+   of how to calculate primes most efficiently since we don't really care
+   for purposes of this demo.
+   
+   (add outside of class Program)
+   
+    [Serializable]
+    public class PrimesRequest
+    {
+        public long To { get; set; }
+        public long From { get; set; }
+    }
+
+    [Serializable]
+    public class PrimesResult
+    {
+        public long To { get; set; }
+        public long From { get; set; }
+        public List<long> Primes { get; set; }
+        public double TotalSeconds { get; set; }
+    }
+  
+13. And now we need a way to chunkify our work. That's easy here. We just need a set of ranges.
+
+	(insert into main)
+	
+        static List<PrimesRequest> Chunkify(long from, long to, int chunkSize)
+        {
+            var list = new List<PrimesRequest>();
+            for (long i = from; i < to + 1; i += chunkSize)
+            {
+                var chunkFrom = i;
+                var chunkTo = i += chunkSize;
+                if (chunkTo > to) chunkTo = to;
+                list.Add(new PrimesRequest { From = chunkFrom, To = chunkTo });
+            }
+            return list;
+        }
+
+	And before we spawn our agents, let's do a little prep work:
+	(insert just under IsMaster check)
+	
+                    var allPrimes = new List<long>();
+                    long from = 2;
+                    long to = 500000;
+                    var chunkedRequests = Chunkify(from, to, 5000);
+                    var nextChunk = 0;
+
+	So now we have all of our chunks that we want a slave agent to process.
+		
+14. Now let's go back to our Started message code.
+    And yes, normally you would want to have a specific class
+	or factory or some other construct to avoid cluttering
+	up your code like this. But this is a demo and I want you 
+	to see all the code all the time.
+	
+	(insert overwrite the started case)
+
+                            case SystemMessageTypes.Started:
+                                agentsStarted++;
+                                if (nextChunk < chunkedRequests.Count)
+                                {
+                                    Agent.Current.MessageQueue.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
+                                    nextChunk++;
+                                }
+                                else
+                                {
+                                    Agent.Current.MessageQueue.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
+                                }
+                                break;
+
+	Let's discuss: Agent.Current - Why use a singleton?
+	Because I want to be able to access this guy in my other classes without 
+	passing it along and I only want the Agent disposed of once in the 
+	using (Visor.ConnectDistributed(args)) code block. 
+	
+	I know, we all love to hate HttpContext.Current but trust me, 
+	Agent's dependencies are injectable but we won't go into that now.
+	
+	The MessageQueue is our primary interest here.
+	If we have chunks left to assign, we send a message to the slave agent that
+	sent us the "started" message - see msg.FromId.
+	And if we have no more chunks to assign, we'll just tell this agent to shut down.
+	
+	A note about "message type" - it is just an integer. User defined integers should always be positive values.
+	All SystemMessageTypes are negative values and reserved. But the framework does not prevent you from screwing this up.
+
+15. The started message was automatically sent by the framework from the slave,
+    so now it's time to handle the message type of "1" from the master. 
+	Normally, you would want to encapsulate these in a class similar to SystemMessageTypes or even an enum
+	but of course with the enum, you would have to cast out the value.
+
+	Let's just copy and paste the whole slave code at one time:
+	
+                else  //is not master, so do work
+                {
+                    Message msg;
+                    do
+                    {
+                        msg = Agent.Current.MessageQueue.ReceiveAnyMessage();
+                        switch (msg.MessageType)
+                        {
+                            case 1:
+                                var request = (PrimesRequest)msg.Content;
+                                try
+                                {
+                                    var response = CalculatePrimes(request);
+                                    Agent.Current.MessageQueue.Send(MpiConsts.MasterAgentId, 2, response);
+                                }
+                                catch (Exception e)
+                                {
+                                    Agent.Current.MessageQueue.Send(MpiConsts.MasterAgentId, SystemMessageTypes.Error, e.ToString());
+                                }
+                                break;
+                            case SystemMessageTypes.Shutdown:
+                                continueProcessing = false;
+                                break;
+                            case SystemMessageTypes.DeliveryFailure:
+                                //this means master is no longer responding, so shut this agent down
+                                //the msg.Content contains the orginal Message object sent
+                                Log.Info("Visor reports message delivery failure.", msg.FromId);
+                                continueProcessing = false;
+                                break;
+                            case SystemMessageTypes.NullMessage:
+                                Log.Info("Visor reports null message indicating timeout in slave {0}.", msg.FromId);
+                                break;
+                            default:  //unknown message type
+                                Log.Info("AgentId {0} sent {1} with {2}", msg.FromId, msg.MessageType, msg.Content);
+                                break;
+                        }
+                    }
+                    while (continueProcessing);
+                }
+	
+	Here we handle message type 1:
+		calculate the primes and send the response back
+		to do so, we cast the msg.Content (ask me about problem serializing the message through cluster node later)
+	We also handle ShutDown, DeliveryFailure, and NullMessage (result of timeout)
+	See blocking call with a timeout (ask about abort strategies later)
+
+16. The slave is sending a response message back of message type 2.
+    Let's handle that like this in the master code switch block:
+	
+                            case 2: //agent finished with chunk
+                                var result = (PrimesResult)msg.Content;
+                                allPrimes.AddRange(result.Primes);
+                                if (nextChunk < chunkedRequests.Count)
+                                {
+                                    Agent.Current.MessageQueue.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
+                                    nextChunk++;
+                                }
+                                else
+                                {
+                                    Agent.Current.MessageQueue.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
+                                }
+                                break;
+
+	So if we are not done, we send the same slave agent more work to do.
+	If we are done, we tell that agent to shut down.
+	And of course, we reduce the result to our set of results.
+
+17. And let's handle the other possible messages in the master:
+
+                            case SystemMessageTypes.Error:
+                                Log.Info("Error from agent {0} of {1}", msg.FromId, msg.Content.ToString());
+                                break;
+                            case SystemMessageTypes.Aborted:
+                            case SystemMessageTypes.Stopped:
+                                agentsShutdown++;
+                                Log.Info("Agent {0} stopped. AgentsShutDown {1} of started {2}", msg.FromId, agentsShutdown, agentsStarted);
+                                if (agentsShutdown == agentsStarted) continueProcessing = false;
+                                break;
+                            case SystemMessageTypes.DeliveryFailure:
+                                //message sent to spawned agent was not able to be delivered
+                                //the msg.Content contains the orginal Message object sent
+                                Log.Info("Visor reports message delivery failure. From {0}.", msg.FromId);
+                                break;
+                            case SystemMessageTypes.NullMessage:
+                                Log.Info("Visor reports null message indicating timeout in master. From {0}.", msg.FromId);
+                                break;
+                            default:
+                                Log.Info("AgentId {0} sent {1} with {2}", msg.FromId, msg.MessageType, msg.Content);
+                                break;
+	
+18. Build and debug. F5
+	
+		Add a Console.Readline(); to main to prevent auto close in debug.
+
+19. Review and run.
+    Show way to force local run.
+	
+		using (Visor.ConnectLocal(args))
+	
+	Use this if you have a DuoVia.MpiVisor.Server instance running locally but you want to just debug
+	in process so that you can debug through master and slave code.
+	
+		Agent.Current.WorkerFactory.SpawnWorkerAgents(agentsToSpawn, args);
+	
+	May want to use this spawn strategy when debugging.
+
+20. What happens is the Receive message method never receives a message?
+
+		Message ReceiveAnyMessage(int timeoutSeconds = 3600);
+
+	If no message is received in 1 hour (by default), the method returns a SystemMessageTypes.NullMessage
+	
+	How can I inject logic that will abandon this timeout and return a null message sooner?
+	
+			using (Visor.ConnectDistributed(args))  // to run distributed across nodes
+            {
+                //demo how to inject visitor function to determine whether the receive message 
+                //method on MessageQueue should continue to block when no message is received after
+                //AbortTimeMs (default of one second) of waiting
+                Agent.Current.MessageQueue.WaitForMessageAbortTimeMs = 1100;
+                Agent.Current.MessageQueue.AbortMessageWaitVisitor = (count) =>
+                {
+                    //demo wait for a message a little more than 5500 ms
+                    if (count > 5)   
+                        return true;
+                    else
+                        return false;
+                };
+
+                if (Agent.Current.IsMaster)
+
+	(insert code between using and if if (Agent.Current.IsMaster))
+	
+	The WaitForMessageAbortTime sets the number of ms 
+	between executing the AbortMessageWaitVisitor.
+	
+	The AbortMessageWaitVisitor is a Func<int, bool> -- the int passed
+	is the number of times the WaitForMessageAbortTime ms has triggered
+	the execution of the function. The function should return true if the
+	wait time should be abandoned and a null message returned.
+
+	In the code we just inserted, if master waits for more than 1100ms x 5,
+	then a null message is returned. If this were a real program, you could
+	do some processing at this point between waiting for messages.
+	
+21. Now, let's run it across the network.
+
+	Run compiled and configured server in console mode.
+	Be sure config and firewall settings are good.
+	
+	Be sure we have ConnectDistributed being called.
+	Check config and firewall.
+	
+22. Get code on another machine from Git and build (do this step in advance).
+
+	Check config and firewall and run in console mode 
+	to contact and sync with my master.
+	
+23. Now launch console app without debug and see what happens.
+	
+	
+	
+Final code:
+        static void Main(string[] args)
+        {
+            var continueProcessing = true;
+            ushort agentsToSpawn = 12;
+
+            //needed to know when all agents have stopped - not MpiVisor required
+            ushort agentsShutdown = 0;
+            ushort agentsStarted = 0;  
+
+            Log.LogType = LogType.Both;
+
+            //using (Visor.ConnectLocal(args))
+			using (Visor.ConnectDistributed(args))  // to run distributed across nodes
+            {
+                //demo how to inject visitor function to determine whether the receive message 
+                //method on MessageQueue should continue to block when no message is received after
+                //AbortTimeMs (default of one second) of waiting
+                Agent.Current.MessageQueue.WaitForMessageAbortTimeMs = 1100;
+                Agent.Current.MessageQueue.AbortMessageWaitVisitor = (count) =>
+                {
+                    //demo wait for a message a little more than 5500 ms
+                    if (count > 5)   
+                        return true;
+                    else
+                        return false;
+                };
+
+                if (Agent.Current.IsMaster)
+                {
+                    Log.LogType = LogType.Both; //assure log to console and file
+                    //find the prime numbers in a certain range by chunks
+                    var allSw = System.Diagnostics.Stopwatch.StartNew();
+                    var allPrimes = new List<long>();
+                    long from = 2;
+                    long to = 500000;
+                    var chunkedRequests = Chunkify(from, to, 5000);
+                    var nextChunk = 0;
+
+                    Agent.Current.WorkerFactory.SpawnOneWorkerAgentPerLogicalProcessor(args); //.SpawnWorkerAgents(agentsToSpawn, args);
+                    //Agent.Current.WorkerFactory.SpawnWorkerAgents(agentsToSpawn, args);
+                    Message msg;
+                    do
+                    {
+                        msg = Agent.Current.MessageQueue.ReceiveAnyMessage();
+                        switch(msg.MessageType)
+                        {
+                            case SystemMessageTypes.Started:
+                                agentsStarted++;
+                                if (nextChunk < chunkedRequests.Count)
+                                {
+                                    Agent.Current.MessageQueue.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
+                                    nextChunk++;
+                                }
+                                else
+                                {
+                                    Agent.Current.MessageQueue.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
+                                }
+                                break;
+                            case 2: //agent finished with chunk
+                                var result = (PrimesResult)msg.Content;
+                                allPrimes.AddRange(result.Primes);
+                                //Log.Info("Found {0} primes between {1} and {2} in {3} seconds.",
+                                //    result.Primes.Count, result.From, result.To, result.TotalSeconds);
+                                if (nextChunk < chunkedRequests.Count)
+                                {
+                                    Agent.Current.MessageQueue.Send(msg.FromId, 1, chunkedRequests[nextChunk]);
+                                    nextChunk++;
+                                }
+                                else
+                                {
+                                    Agent.Current.MessageQueue.Send(msg.FromId, SystemMessageTypes.Shutdown, null);
+                                }
+                                break;
+                            case SystemMessageTypes.Error:
+                                Log.Info("Error from agent {0} of {1}", msg.FromId, msg.Content.ToString());
+                                break;
+                            case SystemMessageTypes.Aborted:
+                            case SystemMessageTypes.Stopped:
+                                agentsShutdown++;
+                                Log.Info("Agent {0} stopped. AgentsShutDown {1} of started {2}", msg.FromId, agentsShutdown, agentsStarted);
+                                if (agentsShutdown == agentsStarted) continueProcessing = false;
+                                break;
+                            case SystemMessageTypes.DeliveryFailure:
+                                //message sent to spawned agent was not able to be delivered
+                                //the msg.Content contains the orginal Message object sent
+                                Log.Info("Visor reports message delivery failure. From {0}.", msg.FromId);
+                                break;
+                            case SystemMessageTypes.NullMessage:
+                                Log.Info("Visor reports null message indicating timeout in master. From {0}.", msg.FromId);
+                                break;
+                            default:
+                                Log.Info("AgentId {0} sent {1} with {2}", msg.FromId, msg.MessageType, msg.Content);
+                                break;
+                        }
+                    }
+                    while (continueProcessing);
+                    allSw.Stop();
+                    Console.WriteLine("TOTALS: {0} primes between {1} and {2} in {3} seconds.",
+                        allPrimes.Count, from, to, allSw.Elapsed.TotalSeconds);
+                    Console.ReadLine();
+                }
+                else  //is not master, so do work
+                {
+                    Message msg;
+                    do
+                    {
+                        msg = Agent.Current.MessageQueue.ReceiveAnyMessage();
+                        switch (msg.MessageType)
+                        {
+                            case 1:
+                                var request = (PrimesRequest)msg.Content;
+                                try
+                                {
+                                    var response = CalculatePrimes(request);
+                                    Agent.Current.MessageQueue.Send(MpiConsts.MasterAgentId, 2, response);
+                                }
+                                catch (Exception e)
+                                {
+                                    Agent.Current.MessageQueue.Send(MpiConsts.MasterAgentId, SystemMessageTypes.Error, e.ToString());
+                                }
+                                break;
+                            case SystemMessageTypes.Shutdown:
+                                continueProcessing = false;
+                                break;
+                            case SystemMessageTypes.DeliveryFailure:
+                                //this means master is no longer responding, so shut this agent down
+                                //the msg.Content contains the orginal Message object sent
+                                Log.Info("Visor reports message delivery failure.", msg.FromId);
+                                continueProcessing = false;
+                                break;
+                            case SystemMessageTypes.NullMessage:
+                                Log.Info("Visor reports null message indicating timeout in slave {0}.", msg.FromId);
+                                break;
+                            default:
+                                Log.Info("AgentId {0} sent {1} with {2}", msg.FromId, msg.MessageType, msg.Content);
+                                break;
+                        }
+                    }
+                    while (continueProcessing);
+                }
+            }
+        }
+
+
+        //brute force prime finder - consumes more and more time
+        static PrimesResult CalculatePrimes(PrimesRequest request)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var primes = new List<long>();
+            for (long i = request.From; i < request.To + 1; i++)
+            {
+                var isPrime = true;
+                for (long j = 2; j < i; j++)
+                {
+                    if (i % j == 0)
+                    {
+                        isPrime = false;
+                        break;
+                    }
+                }
+                if (isPrime) primes.Add(i);
+            }
+            sw.Stop();
+            return new PrimesResult
+            {
+                From = request.From,
+                To = request.To,
+                TotalSeconds = sw.Elapsed.TotalSeconds, 
+                Primes = primes
+            };
+        }
+
+        static List<PrimesRequest> Chunkify(long from, long to, int chunkSize)
+        {
+            var list = new List<PrimesRequest>();
+            for (long i = from; i < to + 1; i += chunkSize)
+            {
+                var chunkFrom = i;
+                var chunkTo = i += chunkSize;
+                if (chunkTo > to) chunkTo = to;
+                list.Add(new PrimesRequest { From = chunkFrom, To = chunkTo });
+            }
+            return list;
+        }
+    }
+
+    [Serializable]
+    public class PrimesRequest
+    {
+        public long To { get; set; }
+        public long From { get; set; }
+    }
+
+    [Serializable]
+    public class PrimesResult
+    {
+        public long To { get; set; }
+        public long From { get; set; }
+        public List<long> Primes { get; set; }
+        public double TotalSeconds { get; set; }
+    }
