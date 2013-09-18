@@ -37,7 +37,7 @@ namespace DuoVia.MpiVisor.Services
 
         public void Broadcast(Message message)
         {
-            Proxy.Send(message);
+            Proxy.Broadcast(message);
         }
 
         public void RegisterMasterAgent(SessionInfo sessionInfo)

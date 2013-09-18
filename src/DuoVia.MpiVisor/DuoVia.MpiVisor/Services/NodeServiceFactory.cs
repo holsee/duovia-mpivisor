@@ -9,7 +9,7 @@ namespace DuoVia.MpiVisor.Services
     public interface INodeServiceFactory : IDisposable
     {
         bool IsInternalServer { get; set; }
-        INodeService CreateConnection(string agentName, bool runInSingleLocalProcess);
+        INodeService CreateConnection(Guid sessionId, bool runInSingleLocalProcess);
     }
 
     /// <summary>
@@ -20,10 +20,16 @@ namespace DuoVia.MpiVisor.Services
         private InternalNodeService _localServerService = null;
         private NodeServiceProxy _svrProxy = null;
         private NpHost _localServerServiceHost = null;
+        private ushort _agentId = 0;
 
         public bool IsInternalServer { get; set; }
 
-        public INodeService CreateConnection(string agentName, bool runInSingleLocalProcess)
+        public NodeServiceFactory(ushort agentId)
+        {
+            _agentId = agentId;
+        }
+
+        public INodeService CreateConnection(Guid sessionId, bool runInSingleLocalProcess)
         {
             if (!runInSingleLocalProcess)
             {
@@ -42,12 +48,17 @@ namespace DuoVia.MpiVisor.Services
                 }
             }
 
-            //host it locally
+            
             IsInternalServer = true;
-            _localServerService = new InternalNodeService();
-            var pipeName = "dvmvs-" + agentName; //unique for this agent/session
-            _localServerServiceHost = new NpHost(_localServerService, pipeName);
-            _localServerServiceHost.Open();
+            var pipeName = "dvmvs-" + string.Format("{0}-{1}", 0, sessionId);
+
+            //host it locally on agent 0 - master agent
+            if (_agentId == MpiConsts.MasterAgentId)
+            {
+                _localServerService = new InternalNodeService();
+                _localServerServiceHost = new NpHost(_localServerService, pipeName);
+                _localServerServiceHost.Open();
+            }
 
             //connect to the local
             var localNpEndPoint = new NpEndPoint(pipeName, 2500);
