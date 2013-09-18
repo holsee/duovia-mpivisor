@@ -68,8 +68,8 @@ namespace DuoVia.MpiVisor
             AgentId = assignedAgentId;
 
             //create connection to NodeService 
-            _nodeServiceFactory = _nodeServiceFactory ?? new NodeServiceFactory();
-            _nodeServiceProxy = _nodeServiceFactory.CreateConnection(this.Name, _runInSingleLocalProcess); 
+            _nodeServiceFactory = _nodeServiceFactory ?? new NodeServiceFactory(AgentId);
+            _nodeServiceProxy = _nodeServiceFactory.CreateConnection(this.Session.SessionId, _runInSingleLocalProcess); 
 
             //open AgentService host to allow server to talk to this agent
             //pipeName is always agent Name to allow multiple agent instances on same machine
