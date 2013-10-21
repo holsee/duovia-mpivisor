@@ -31,11 +31,13 @@ namespace DuoVia.MpiVisor.Server
                 //start hosting services here
                 _nodeService = new NodeService();
                 //specify "Users" to allow a local master agent to run against a service hosted by a domain user or other user
-                _nodeServiceHost = new NpHost(_nodeService, MpiConsts.NodeServicePipeName);
+                _nodeServiceHost = new NpHost(MpiConsts.NodeServicePipeName);
+                _nodeServiceHost.AddService<INodeService>(_nodeService);
                 _nodeServiceHost.Open();
 
                 _clusterService = new ClusterService();
-                _clusterServiceHost = new TcpHost(_clusterService, ServerVisor.Current.EndPoint);
+                _clusterServiceHost = new TcpHost(ServerVisor.Current.EndPoint);
+                _clusterServiceHost.AddService<IClusterService>(_clusterService);
                 _clusterServiceHost.Open();
 
                 //create management service if configured
@@ -45,7 +47,8 @@ namespace DuoVia.MpiVisor.Server
                     var parts = config.Split(',');
                     var endPoint = new IPEndPoint(IPAddress.Parse(parts[0]), int.Parse(parts[1]));
                     _managementService = new ManagementService();
-                    _managementServiceHost = new TcpHost(_managementService, endPoint);
+                    _managementServiceHost = new TcpHost(endPoint);
+                    _managementServiceHost.AddService<IManagementService>(_managementService);
                     _managementServiceHost.Open();
                 }
 

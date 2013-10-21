@@ -56,7 +56,8 @@ namespace DuoVia.MpiVisor.Services
             if (_agentId == MpiConsts.MasterAgentId)
             {
                 _localServerService = new InternalNodeService();
-                _localServerServiceHost = new NpHost(_localServerService, pipeName);
+                _localServerServiceHost = new NpHost(pipeName);
+                _localServerServiceHost.AddService<INodeService>(_localServerService);
                 _localServerServiceHost.Open();
             }
 

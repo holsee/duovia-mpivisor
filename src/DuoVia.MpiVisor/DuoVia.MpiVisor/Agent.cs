@@ -74,7 +74,8 @@ namespace DuoVia.MpiVisor
             //open AgentService host to allow server to talk to this agent
             //pipeName is always agent Name to allow multiple agent instances on same machine
             _agentService = _agentService ?? new AgentService();
-            _agentServiceHost = new NpHost(_agentService, this.Name); 
+            _agentServiceHost = new NpHost(this.Name);
+            _agentServiceHost.AddService<IAgentService>(_agentService);
             _agentServiceHost.Open();
 
             //create message queue if not already injected
